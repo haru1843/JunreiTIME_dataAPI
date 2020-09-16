@@ -7,7 +7,7 @@ api = Blueprint('api', __name__, url_prefix='/api')
 
 # /api/locations, [GET]
 @api.route('/locations', methods=['GET'])
-def list_user():
+def get_locations_in_circle():
     """
     hoge
 
@@ -83,7 +83,7 @@ def list_user():
 
 # /api/locations, [GET]
 @api.route('/random-locations', methods=['GET'])
-def list_user():
+def get_random_locations():
     """
     hoge
 
@@ -111,16 +111,16 @@ def list_user():
 
     info_list = [
         {
-            "code": series["code"],
-            "name": series["name"],
-            "lat": float(series["lat"]),
-            "lon": float(series["lat"]),
-            "title": series["title"],
-            "orignal_name": series["orignal_name"],
-            "scene_in_the_work": series["scene_in_the_work"],
-            "tag": series["tag"],
+            "code": series.loc["code"],
+            "name": series.loc["name"],
+            "lat": float(series.loc["lat"]),
+            "lon": float(series.loc["lat"]),
+            "title": series.loc["title"],
+            "orignal_name": series.loc["orignal_name"],
+            "scene_in_the_work": series.loc["scene_in_the_work"],
+            "tag": series.loc["tag"],
         }
-        for series in df.sample(n=q_num).iterrows()
+        for index, series in df.sample(n=q_num).iterrows()
     ]
 
     return jsonify(info_list), 200

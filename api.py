@@ -1,10 +1,9 @@
 from flask import Blueprint, request, abort, jsonify
-# import pandas as pd
-import random
+import pandas as pd
+import numpy as np
 
 # Blueprint作成 http://host/api 以下のものはここで処理
 api = Blueprint('api', __name__, url_prefix='/api')
-
 
 # /api/locations, [GET]
 @api.route('/locations', methods=['GET'])
@@ -54,6 +53,7 @@ def list_user():
         return "tag", 400
 
     # 全体の処理
+
     info_list = [
         {
             "code": "13106013002",
@@ -78,6 +78,50 @@ def list_user():
     ]
 
     # pd.read_csv("./data/anime01.csv")
+
+    return jsonify(info_list), 200
+
+# /api/locations, [GET]
+@api.route('/random-locations', methods=['GET'])
+def list_user():
+    """
+    hoge
+
+    param
+    ----------------------
+
+
+    return
+    ----------------------
+
+    """
+    # クエリパラメータの取得
+    q_num = request.args.get('num', default=10, type=int)
+
+    # クエリパラメータに対するチェック
+    if q_num > 1000:
+        return "要求数が多すぎます", 400
+    if q_num < 1:
+        return "要求数は0以上の整数である必要がります", 400
+
+    # 全データのロード
+    info_list = [{}] * q_num
+    df = pd.read_pickle("./data/drama01_df.pkl")
+    df = df.append(pd.read_pickle("./data/anime01_df.pkl")).reset_index()
+
+    info_list = [
+        {
+            "code": series["code"],
+            "name": series["name"],
+            "lat": float(series["lat"]),
+            "lon": float(series["lat"]),
+            "title": series["title"],
+            "orignal_name": series["orignal_name"],
+            "scene_in_the_work": series["scene_in_the_work"],
+            "tag": series["tag"],
+        }
+        for series in df.sample(n=q_num).iterrows()
+    ]
 
     return jsonify(info_list), 200
 

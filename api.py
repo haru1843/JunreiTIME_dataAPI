@@ -77,6 +77,8 @@ def list_user():
         },
     ]
 
+    pd.read_csv("./data/anime01.csv")
+
     return jsonify(info_list), 200
 
 

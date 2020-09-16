@@ -9,9 +9,7 @@
 
 # APIの仕様
 
-## ホスト
-
-hoge/fuga/api
+ホスト : `https://junrei-time-dataapi.herokuapp.com/api/`
 
 ## /random-locations [GET] (一応完成?)
 

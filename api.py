@@ -1,5 +1,5 @@
 from flask import Blueprint, request, abort, jsonify
-import pandas as pd
+# import pandas as pd
 import random
 
 # Blueprint作成 http://host/api 以下のものはここで処理
@@ -77,7 +77,7 @@ def list_user():
         },
     ]
 
-    pd.read_csv("./data/anime01.csv")
+    # pd.read_csv("./data/anime01.csv")
 
     return jsonify(info_list), 200
 

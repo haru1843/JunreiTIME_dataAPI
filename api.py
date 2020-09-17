@@ -114,7 +114,7 @@ def get_random_locations():
             "code": series.loc["code"],
             "name": series.loc["name"],
             "lat": float(series.loc["lat"]),
-            "lon": float(series.loc["lat"]),
+            "lon": float(series.loc["lon"]),
             "title": series.loc["title"],
             "orignal_name": series.loc["orignal_name"],
             "scene_in_the_work": series.loc["scene_in_the_work"],

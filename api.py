@@ -188,12 +188,11 @@ def get_locations_in_circle():
         info_list = info_list[:q_limit]
 
     count_dict = {
-        "total": total
+        "total": total,
         "limit": q_limit
     }
 
     return jsonify({"count": count_dict, "items": info_list}), 200
-    # return jsonify(info_list), 200
 
 # /api/locations, [GET]
 @api.route('/random_locations', methods=['GET'])

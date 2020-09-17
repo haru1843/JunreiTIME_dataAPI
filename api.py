@@ -1,9 +1,25 @@
 from flask import Blueprint, request, abort, jsonify
 import pandas as pd
 import numpy as np
+import os
+import pyproj
 
 # Blueprint作成 http://host/api 以下のものはここで処理
 api = Blueprint('api', __name__, url_prefix='/api')
+
+
+def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
+    _, _, dist = grs80.inv(
+        lon_c, lat_c,
+        lon_query, lat_query
+    )
+
+    if d <= r_query - r_c:
+        return "inner"
+    elif d < r_query + r_c:
+        return "touch"
+    else:
+        return "outer"
 
 # /api/locations, [GET]
 @api.route('/locations_in_circle', methods=['GET'])
@@ -55,33 +71,109 @@ def get_locations_in_circle():
         return "tag", 400
 
     # 全体の処理
+    clustered_data_dir = "./data/clustered_data/"
+    main_cluster_info = pd.read_pickle(os.path.join(clustered_data_dir, "cluster_info.pkl"))
 
-    info_list = [
-        {
-            "code": "13106013002",
-            "name": "東京都台東区蔵前2丁目",
-            "lat": 35.703591,
-            "lon": 139.792741,
-            "title": "R.O.D",
-            "orignal_name": "東京都台東区蔵前2丁目春日通り",
-            "scene_in_the_work": "ねねねのマンション近くの橋/全話共通/厩橋",
-            "tag": "anime",
-        },
-        {
-            "code": "13106013001",
-            "name": "東京都台東区蔵前1丁目",
-            "lat": 35.700592,
-            "lon": 139.789514,
-            "title": "R.O.D",
-            "orignal_name": "東京都台東区蔵前1丁目蔵前橋通り",
-            "scene_in_the_work": "マンションから追い出された三姉妹が渡った橋/2話/蔵前橋",
-            "tag": "anime",
-        },
-    ]
+    digit = 3
 
-    # pd.read_csv("./data/anime01.csv")
+    target_main_cluster_list = []
 
-    return jsonify(info_list), 200
+    inner_cluster = []  # 完全に内側にあるもの. 判別する必要なし
+    touch_cluster = []  # サブクラスタを持ち, 触れているもの. サブクラスタの判定を行う
+
+    check_cluster = []  # サブクラスタを持っていない, 触れているもの. 各点においてチェックが必要
+
+    grs80 = pyproj.Geod(ellps="GRS80")
+
+    # メインクラスタに対するイテレータ処理
+    format_str = "{:0" + str(digit) + "}/"
+    for idx in range(len(main_cluster_info)):
+        nth_cluster_info = first_cluster_info.iloc[idx]
+
+        # 距離の比較
+        circles_state = check_circles_state(
+            grs80,
+            nth_cluster_info["lat"],
+            nth_cluster_info["lon"],
+            nth_cluster_info["max"],
+            q_lat, q_lon, q_r
+        )
+
+        if circles_state == "outer":
+            continue
+        elif circles_state == "inner":
+            dir_name = format_str.format(nth_cluster)
+            inner_cluster.append(os.path.join(clustered_data_dir, dir_name))
+        elif circles_state == "touch":
+            if not nth_cluster_info["subcluster"]:
+                # サブクラスタを持っていない場合
+                dir_name = format_str.format(nth_cluster)
+                check_cluster.append(os.path.join(clustered_data_dir, dir_name))
+            else:
+                # サブクラスタを持っている場合
+                dir_name = format_str.format(nth_cluster)
+                touch_cluster.append(os.path.join(clustered_data_dir, dir_name))
+        else:
+            return "circles state invalid", 500
+
+    # サブクラスタに対するイテレータ処理
+    for sub_cluster_dir in check_cluster:
+        sub_cluster_info = pd.read_pickle(os.path.join(sub_cluster_dir, "cluster_info.pkl"))
+
+        # 距離の比較
+        circles_state = check_circles_state(
+            grs80,
+            sub_cluster_info["lat"],
+            sub_cluster_info["lon"],
+            sub_cluster_info["max"],
+            q_lat, q_lon, q_r
+        )
+
+        if circles_state == "outer":
+            continue
+        elif circles_state == "inner":
+            dir_name = format_str.format(nth_cluster)
+            inner_cluster.append(os.path.join(clustered_data_dir, dir_name))
+        elif circles_state == "touch":
+            if not nth_cluster_info["subcluster"]:
+                # サブクラスタを持っていない場合
+                dir_name = format_str.format(nth_cluster)
+                check_cluster.append(os.path.join(clustered_data_dir, dir_name))
+            else:
+                # サブクラスタを持っている場合
+                dir_name = format_str.format(nth_cluster)
+                touch_cluster.append(os.path.join(clustered_data_dir, dir_name))
+        else:
+            return "circles state invalid", 500
+
+    info_list = []
+
+    # 内包円でなく, 重なっているクラスタに対して, 各要素で範囲内にあるかをチェック
+    for check_cluster_dir in check_cluster:
+        all_df = pd.read_pickle(os.path.join(check_cluster_dir, "all.pkl"))
+
+        # クラスターの情報の計算
+        target_num = len(all_df)
+        center_point_lat = [q_lat] * target_num
+        center_point_lon = [q_lon] * target_num
+
+        _, _, dist = grs80.inv(
+            center_point_lon, center_point_lat,
+            all_df["lon"].to_numpy(),
+            all_df["lat"].to_numpy()
+        )
+
+        if sum(dist > q_r) > 0:
+            info_list += all_df[dist > q_r].to_dict(orient="records")
+
+    # クラスタが完全に内包されている場合, その要素は全て追加
+    for inner_cluster_dir in inner_cluster:
+        all_df = pd.read_pickle(os.path.join(inner_cluster, "all.pkl"))
+        if len(all_df) > 0:
+            info_list += all_df[dist > q_r].to_dict(orient="records")
+
+    return jsonify({"count": {"total": len(info_list)}, "items": info_list}), 200
+    # return jsonify(info_list), 200
 
 # /api/locations, [GET]
 @api.route('/random-locations', methods=['GET'])

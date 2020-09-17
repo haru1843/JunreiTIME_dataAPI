@@ -14,9 +14,9 @@ def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query)
         lon_query, lat_query
     )
 
-    if d <= r_query - r_c:
+    if dist <= r_query - r_c:
         return "inner"
-    elif d < r_query + r_c:
+    elif dist < r_query + r_c:
         return "touch"
     else:
         return "outer"
@@ -73,8 +73,8 @@ def get_locations_in_circle():
                        for target_tag in support_tag_list
                        if target_tag in tag_token_list]
     if len(target_tag_list) <= 0:
-        print(tag_token_list)
-        return "tag", 400
+        # print(tag_token_list)
+        return "parameter 'tag' is wrong", 400
 
     # 全体の処理
     clustered_data_dir = "./data/clustered_data/"
@@ -94,7 +94,8 @@ def get_locations_in_circle():
     # メインクラスタに対するイテレータ処理
     format_str = "{:0" + str(digit) + "}/"
     for idx in range(len(main_cluster_info)):
-        nth_cluster_info = first_cluster_info.iloc[idx]
+        nth_cluster_info = main_cluster_info.iloc[idx]
+        nth_cluster = nth_cluster_info["nth_cluster"]
 
         # 距離の比較
         circles_state = check_circles_state(
@@ -123,7 +124,7 @@ def get_locations_in_circle():
             return "circles state invalid", 500
 
     # サブクラスタに対するイテレータ処理
-    for sub_cluster_dir in check_cluster:
+    for sub_cluster_dir in touch_cluster:
         sub_cluster_info = pd.read_pickle(os.path.join(sub_cluster_dir, "cluster_info.pkl"))
 
         # 距離の比較
@@ -153,6 +154,8 @@ def get_locations_in_circle():
             return "circles state invalid", 500
 
     info_list = []
+    print(f"len(check_cluster)={len(check_cluster)}")
+    print(f"len(inner_cluster)={len(inner_cluster)}")
 
     # 内包円でなく, 重なっているクラスタに対して, 各要素で範囲内にあるかをチェック
     for check_cluster_dir in check_cluster:
@@ -169,8 +172,8 @@ def get_locations_in_circle():
             all_df["lat"].to_numpy()
         )
 
-        if sum(dist > q_r) > 0:
-            info_list += all_df[dist > q_r].to_dict(orient="records")
+        if sum(dist <= q_r) > 0:
+            info_list += all_df[dist <= q_r].to_dict(orient="records")
 
     # クラスタが完全に内包されている場合, その要素は全て追加
     for inner_cluster_dir in inner_cluster:

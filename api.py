@@ -174,14 +174,39 @@ def get_locations_in_circle():
             all_df["lat"].to_numpy()
         )
 
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        all_df["distance"] = dist
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
         if sum(dist <= q_r) > 0:
             info_list += all_df[dist <= q_r].to_dict(orient="records")
 
     # クラスタが完全に内包されている場合, その要素は全て追加
     for inner_cluster_dir in inner_cluster:
         all_df = pd.read_pickle(os.path.join(inner_cluster_dir, "all.pkl"))
+
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # クラスターの情報の計算
+        target_num = len(all_df)
+        center_point_lat = [q_lat] * target_num
+        center_point_lon = [q_lon] * target_num
+
+        _, _, dist = grs80.inv(
+            center_point_lon, center_point_lat,
+            all_df["lon"].to_numpy(),
+            all_df["lat"].to_numpy()
+        )
+        all_df["distance"] = dist
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
         if len(all_df) > 0:
             info_list += all_df.to_dict(orient="records")
+
+    info_list.sort(key=lambda x: x["distance"])
 
     total = len(info_list)
     if total > q_limit:

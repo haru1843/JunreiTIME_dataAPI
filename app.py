@@ -8,6 +8,7 @@ from api import api
 app = Flask(__name__)
 
 CORS(app)
+CORS(api)
 
 # ファイルから設定を読み込む
 # app.config.from_pyfile('conf.cfg')

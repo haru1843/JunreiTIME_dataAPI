@@ -6,7 +6,7 @@ import numpy as np
 api = Blueprint('api', __name__, url_prefix='/api')
 
 # /api/locations, [GET]
-@api.route('/locations', methods=['GET'])
+@api.route('/locations_in_circle', methods=['GET'])
 def get_locations_in_circle():
     """
     hoge

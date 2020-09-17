@@ -5,6 +5,8 @@ import numpy as np
 # Blueprint作成 http://host/api 以下のものはここで処理
 api = Blueprint('api', __name__, url_prefix='/api')
 
+api.config["JSON_AS_ASCII"] = False
+
 # /api/locations, [GET]
 @api.route('/locations', methods=['GET'])
 def get_locations_in_circle():

@@ -206,9 +206,12 @@ def get_locations_in_circle():
         if len(all_df) > 0:
             info_list += all_df.to_dict(orient="records")
 
-    info_list.sort(key=lambda x: x["distance"])
+    info_list = list(filter(lambda x: x["tag"] in target_tag_list, info_list))
 
     total = len(info_list)
+
+    info_list.sort(key=lambda x: x["distance"])
+
     if total > q_limit:
         info_list = info_list[:q_limit]
 

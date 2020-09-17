@@ -123,7 +123,7 @@ def get_random_locations():
         for index, series in df.sample(n=q_num).iterrows()
     ]
 
-    return jsonify({"count": {"total": q_num}, "itmes": info_list}), 200
+    return jsonify({"count": {"total": q_num}, "items": info_list}), 200
 
 
 # エラーのハンドリング

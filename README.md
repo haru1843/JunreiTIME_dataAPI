@@ -43,7 +43,7 @@ https://junrei-time-dataapi.herokuapp.com/api/random_locations
 https://junrei-time-dataapi.herokuapp.com/api/random_locations?num=3
 ```
 
-## /locations [GET] (実装済み)
+## /locations_in_circle [GET] (実装済み)
 
 ### 概要
 

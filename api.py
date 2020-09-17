@@ -154,8 +154,6 @@ def get_locations_in_circle():
             return "circles state invalid", 500
 
     info_list = []
-    print(f"len(check_cluster)={len(check_cluster)}")
-    print(f"len(inner_cluster)={len(inner_cluster)}")
 
     # 内包円でなく, 重なっているクラスタに対して, 各要素で範囲内にあるかをチェック
     for check_cluster_dir in check_cluster:
@@ -177,9 +175,9 @@ def get_locations_in_circle():
 
     # クラスタが完全に内包されている場合, その要素は全て追加
     for inner_cluster_dir in inner_cluster:
-        all_df = pd.read_pickle(os.path.join(inner_cluster, "all.pkl"))
+        all_df = pd.read_pickle(os.path.join(inner_cluster_dir, "all.pkl"))
         if len(all_df) > 0:
-            info_list += all_df[dist > q_r].to_dict(orient="records")
+            info_list += all_df.to_dict(orient="records")
 
     return jsonify({"count": {"total": len(info_list)}, "items": info_list}), 200
     # return jsonify(info_list), 200

@@ -7,6 +7,8 @@ from api import api
 # Flask本体
 app = Flask(__name__)
 
+app.config["JSON_AS_ASCII"] = False
+
 CORS(app)
 CORS(api)
 

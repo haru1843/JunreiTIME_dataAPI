@@ -46,17 +46,23 @@ def get_locations_in_circle():
     support_tag_list = ["anime", "drama"]
 
     # latに対するチェック
-    if not (-90.0 <= q_lat <= 90.0):
+    if q_lat is None:
+        return "parameter 'lat' is required", 400
+    elif not (-90.0 <= q_lat <= 90.0):
         return "parameter 'lat' is wrong", 400
 
     # lonに対するチェック
-    if not (-180.0 <= q_lon <= 180.0):
+    if q_lon is None:
+        return "parameter 'lon' is required", 400
+    elif not (-180.0 <= q_lon <= 180.0):
         return "parameter 'lon' is wrong", 400
 
     # rに対するチェック
-    if q_r < 100:
+    if q_r is None:
+        return "parameter 'r' is required", 400
+    elif q_r < 100:
         return "parameter 'r' is too small", 400
-    if q_r > 100000:
+    elif q_r > 100000:
         return "parameter 'r' is too large", 400
 
     # tagに対する処理とチェック

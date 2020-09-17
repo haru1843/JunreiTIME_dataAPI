@@ -31,15 +31,17 @@ def get_locations_in_circle():
 
     # latに対するチェック
     if not (-90.0 <= q_lat <= 90.0):
-        return "lat", 400
+        return "parameter 'lat' is wrong", 400
 
     # lonに対するチェック
     if not (-180.0 <= q_lon <= 180.0):
-        return "lon", 400
+        return "parameter 'lon' is wrong", 400
 
     # rに対するチェック
     if q_r < 100:
-        return "r", 400
+        return "parameter 'r' is too small", 400
+    if q_r > 100000:
+        return "parameter 'r' is too large", 400
 
     # tagに対する処理とチェック
     for trim_str in trim_str_list:

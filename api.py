@@ -183,7 +183,7 @@ def get_locations_in_circle():
     # return jsonify(info_list), 200
 
 # /api/locations, [GET]
-@api.route('/random-locations', methods=['GET'])
+@api.route('/random_locations', methods=['GET'])
 def get_random_locations():
     """
     hoge

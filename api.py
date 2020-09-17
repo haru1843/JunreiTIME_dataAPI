@@ -40,6 +40,7 @@ def get_locations_in_circle():
     q_lon = request.args.get('lon', type=float)
     q_r = request.args.get('r', type=int)
     q_tag = request.args.get('tag', default="anime,drama", type=str)
+    q_limit = request.args.get('limit', default=1000, type=int)
 
     # tag関連のパラメータ
     trim_str_list = ["'", '"', "(", ")", "[", "]"]
@@ -75,6 +76,9 @@ def get_locations_in_circle():
     if len(target_tag_list) <= 0:
         # print(tag_token_list)
         return "parameter 'tag' is wrong", 400
+
+    if q_limit <= 0:
+        return "parameter 'r' must be greater then 0", 400
 
     # 全体の処理
     clustered_data_dir = "./data/clustered_data/"
@@ -179,7 +183,16 @@ def get_locations_in_circle():
         if len(all_df) > 0:
             info_list += all_df.to_dict(orient="records")
 
-    return jsonify({"count": {"total": len(info_list)}, "items": info_list}), 200
+    total = len(info_list)
+    if total > q_limit:
+        info_list = info_list[:q_limit]
+
+    count_dict = {
+        "total": total
+        "limit": q_limit
+    }
+
+    return jsonify({"count": count_dict, "items": info_list}), 200
     # return jsonify(info_list), 200
 
 # /api/locations, [GET]

@@ -7,7 +7,7 @@
 
 ホスト : `https://junrei-time-dataapi.herokuapp.com/api/`
 
-## /random-locations [GET] (一応完成?)
+## /random_locations [GET] (実装済み)
 
 ### 概要
 
@@ -36,9 +36,18 @@
 |        `"tag"`        | アニメかドラマかの判別タグ |    str    |
 |       `"title"`       |           作品名           |    str    |
 
-## /locations [GET] (tagが未完成)
+### 利用例
+
+```
+https://junrei-time-dataapi.herokuapp.com/api/random_locations
+https://junrei-time-dataapi.herokuapp.com/api/random_locations?num=3
+```
+
+## /locations [GET] (実装済み)
 
 ### 概要
+
+中心点(lat, lon)から半径r内の円にある関連地を取得します.
 
 ### パラメータ
 
@@ -67,3 +76,10 @@
 | `"scene_in_the_work"` |     作中での登場シーン     |    str    |
 |        `"tag"`        | アニメかドラマかの判別タグ |    str    |
 |       `"title"`       |           作品名           |    str    |
+
+
+### 利用例
+
+```
+https://junrei-time-dataapi.herokuapp.com/api/locations_in_circle?lat=35.556243&lon=139.662233&r=10000&limit=10&tag=anime
+```

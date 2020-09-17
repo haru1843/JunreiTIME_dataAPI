@@ -1,10 +1,13 @@
 from flask import Flask, render_template, jsonify
+from flask_cors import CORS
 
 # from mode
 from api import api
 
 # Flask本体
 app = Flask(__name__)
+
+CORS(app)
 
 # ファイルから設定を読み込む
 # app.config.from_pyfile('conf.cfg')

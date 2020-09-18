@@ -8,16 +8,16 @@ import pyproj
 api = Blueprint('api', __name__, url_prefix='/api')
 
 
-def d1_fitting(d):
-    return 57.04183701 * x + -6583.68566879
+def d1_fitting(budget):
+    return 57.04183701 * budget + -6583.68566879
 
 
-def d2_fitting(d):
-    return -1.42530169e-3 * (x**2) + 6.68895706e1 * x + -1.46801237e4
+def d2_fitting(budget):
+    return -1.42530169e-3 * (budget**2) + 6.68895706e1 * budget + -1.46801237e4
 
 
-def d3_fitting(d):
-    return -3.07406205e-7*(x**3) + 4.01853773e-3*(x**2) + 4.50963296e1*(x) - 8.39336896e2
+def d3_fitting(budget):
+    return -3.07406205e-7*(budget**3) + 4.01853773e-3*(budget**2) + 4.50963296e1*(budget) - 8.39336896e2
 
 
 def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
@@ -41,63 +41,62 @@ def convert_tag_str_to_target_tag_list(tag_str):
 
     for trim_str in trim_str_list:
         tag_str = tag_str.replace(trim_str, "")
-    tag_token_list = [token.strip() for token in q_tag.split(",")]
+    tag_token_list = [token.strip() for token in tag_str.split(",")]
     return [target_tag for target_tag in support_tag_list if target_tag in tag_token_list]
 
 
-# /api/locations_in_circle, [GET]
-@api.route('/locations_in_circle', methods=['GET'])
-def get_locations_in_circle():
-    """
-    hoge
+def is_lat_wrong(lat):
+    if lat is None:
+        return {"msg": "parameter 'lat' is required", "status_code": 400}
+    elif not (-90.0 <= lat <= 90.0):
+        return {"msg": "parameter 'lat' is wrong", "status_code": 400}
 
-    param
-    ----------------------
+    return False
 
 
-    return
-    ----------------------
+def is_lon_wrong(lon):
+    if lon is None:
+        return {"msg": "parameter 'lon' is required", "status_code": 400}
+    elif not (-180.0 <= lon <= 180.0):
+        return {"msg": "parameter 'lon' is wrong", "status_code": 400}
 
-    """
-    # クエリパラメータの取得
-    q_lat = request.args.get('lat', type=float)
-    q_lon = request.args.get('lon', type=float)
-    q_r = request.args.get('r', type=int)
-    q_tag = request.args.get('tag', default="anime,drama", type=str)
-    q_limit = request.args.get('limit', default=1000, type=int)
+    return False
 
-    # latに対するチェック
-    if q_lat is None:
-        return "parameter 'lat' is required", 400
-    elif not (-90.0 <= q_lat <= 90.0):
-        return "parameter 'lat' is wrong", 400
 
-    # lonに対するチェック
-    if q_lon is None:
-        return "parameter 'lon' is required", 400
-    elif not (-180.0 <= q_lon <= 180.0):
-        return "parameter 'lon' is wrong", 400
+def is_r_wrong(r):
+    if r is None:
+        return {"msg": "parameter 'r' is required", "status_code": 400}
+    elif r < 100:
+        return {"msg": "parameter 'r' is too small", "status_code": 400}
+    elif r > 100000:
+        return {"msg": "parameter 'r' is too large", "status_code": 400}
 
-    # rに対するチェック
-    if q_r is None:
-        return "parameter 'r' is required", 400
-    elif q_r < 100:
-        return "parameter 'r' is too small", 400
-    elif q_r > 100000:
-        return "parameter 'r' is too large", 400
+    return False
 
-    # tagに対する処理とチェック
-    tag_token_list = convert_tag_str_to_target_tag_list(q_tag)
-    target_tag_list = [target_tag
-                       for target_tag in support_tag_list
-                       if target_tag in tag_token_list]
-    if len(target_tag_list) <= 0:
-        # print(tag_token_list)
-        return "parameter 'tag' is wrong", 400
 
-    if q_limit <= 0:
-        return "parameter 'r' must be greater then 0", 400
+def is_budget_wrong(budget):
+    if budget is None:
+        return {"msg": "parameter 'budget' is required", "status_code": 400}
+    elif budget < 10:
+        return {"msg": "parameter 'budget' is too small", "status_code": 400}
+    elif budget > 10000:
+        return {"msg": "parameter 'budget' is too large", "status_code": 400}
 
+    return False
+
+
+def get_fitting_func_from_func_type(func_type):
+    support_func_type_mapping = {
+        "d1": d1_fitting, "d2": d2_fitting, "d3": d3_fitting
+    }
+
+    if func_type not in support_func_type_mapping.keys():
+        return None
+
+    return support_func_type_mapping[func_type]
+
+
+def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list):
     # 全体の処理
     clustered_data_dir = "./data/clustered_data/"
     main_cluster_info = pd.read_pickle(os.path.join(clustered_data_dir, "cluster_info.pkl"))
@@ -238,7 +237,109 @@ def get_locations_in_circle():
         "limit": q_limit
     }
 
-    return jsonify({"count": count_dict, "items": info_list}), 200
+    return {"count": count_dict, "items": info_list}, 200
+
+# /api/locations_within_budget, [GET]
+@api.route('/locations_within_budget', methods=['GET'])
+def get_locations_within_budget():
+    # クエリパラメータの取得
+    q_lat = request.args.get('lat', type=float)
+    q_lon = request.args.get('lon', type=float)
+    q_budget = request.args.get('budget', type=int)
+    q_func_type = request.args.get('func_type', default="d2", type=str)
+    q_tag = request.args.get('tag', default="anime,drama", type=str)
+    q_limit = request.args.get('limit', default=1000, type=int)
+
+    # latに対するチェック
+    lat_is_wrong = is_lat_wrong(q_lat)
+    if lat_is_wrong:
+        return lat_is_wrong["msg"], lat_is_wrong["status_code"]
+
+    # lonに対するチェック
+    lon_is_wrong = is_lon_wrong(q_lon)
+    if lon_is_wrong:
+        return lon_is_wrong["msg"], lon_is_wrong["status_code"]
+
+    # budgetに対するチェック
+    budget_is_wrong = is_budget_wrong(q_budget)
+    if budget_is_wrong:
+        return budget_is_wrong["msg"], budget_is_wrong["status_code"]
+
+    # func_typeから対応する変換のための関数を取得
+    fitting_func = get_fitting_func_from_func_type(q_func_type)
+    calc_r = fitting_func(q_budget)
+
+    # rに対するチェック
+    r_is_wrong = is_r_wrong(calc_r)
+    if r_is_wrong:
+        return r_is_wrong["msg"], r_is_wrong["status_code"]
+
+    # tagに対する処理とチェック
+    target_tag_list = convert_tag_str_to_target_tag_list(q_tag)
+    if len(target_tag_list) <= 0:
+        return "parameter 'tag' is wrong", 400
+
+    if q_limit <= 0:
+        return "parameter 'r' must be greater then 0", 400
+
+    # 全体の処理
+    rtn_dict, status_code = calc_locations_in_circle(
+        q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
+        q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list
+    )
+    rtn_dict["convert"] = {"budget": q_budget, "distance": calc_r}
+    return rtn_dict, status_code
+
+# /api/locations_in_circle, [GET]
+@api.route('/locations_in_circle', methods=['GET'])
+def get_locations_in_circle():
+    """
+    hoge
+
+    param
+    ----------------------
+
+
+    return
+    ----------------------
+
+    """
+    # クエリパラメータの取得
+    q_lat = request.args.get('lat', type=float)
+    q_lon = request.args.get('lon', type=float)
+    q_r = request.args.get('r', type=int)
+    q_tag = request.args.get('tag', default="anime,drama", type=str)
+    q_limit = request.args.get('limit', default=1000, type=int)
+
+    # latに対するチェック
+    lat_is_wrong = is_lat_wrong(q_lat)
+    if lat_is_wrong:
+        return lat_is_wrong["msg"], lat_is_wrong["status_code"]
+
+    # lonに対するチェック
+    lon_is_wrong = is_lon_wrong(q_lon)
+    if lon_is_wrong:
+        return lon_is_wrong["msg"], lon_is_wrong["status_code"]
+
+    # rに対するチェック
+    r_is_wrong = is_r_wrong(q_r)
+    if r_is_wrong:
+        return r_is_wrong["msg"], r_is_wrong["status_code"]
+
+    # tagに対する処理とチェック
+    target_tag_list = convert_tag_str_to_target_tag_list(q_tag)
+    if len(target_tag_list) <= 0:
+        return "parameter 'tag' is wrong", 400
+
+    if q_limit <= 0:
+        return "parameter 'r' must be greater then 0", 400
+
+    # 全体の処理
+    rtn_dict, status_code = calc_locations_in_circle(
+        q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
+        q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list
+    )
+    return jsonify(rtn_dict), status_code
 
 # /api/locations, [GET]
 @api.route('/random_locations', methods=['GET'])

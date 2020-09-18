@@ -9,15 +9,18 @@ api = Blueprint('api', __name__, url_prefix='/api')
 
 
 def d1_fitting(budget):
-    return 57.04183701 * budget + -6583.68566879
+    # return 57.04183701 * budget + -6583.68566879
+    return (74.32884302 * budget) - 17376.6623352
 
 
 def d2_fitting(budget):
-    return -1.42530169e-3 * (budget**2) + 6.68895706e1 * budget + -1.46801237e4
+    # return -1.42530169e-3 * (budget**2) + 6.68895706e1 * budget + -1.46801237e4
+    return 7.25810716e-03 * (budget**2) + (4.88282995e+01 * budget) - 4.94836817e+03
 
 
 def d3_fitting(budget):
-    return -3.07406205e-7*(budget**3) + 4.01853773e-3*(budget**2) + 4.50963296e1*(budget) - 8.39336896e2
+    # return -3.07406205e-7*(budget**3) + 4.01853773e-3*(budget**2) + 4.50963296e1*(budget) - 8.39336896e2
+    return -9.05759095e-06 * (budget**3) + 5.57103185e-02 * (budget**2) - 9.18636189*(budget) + 1.13578072e+04
 
 
 def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):

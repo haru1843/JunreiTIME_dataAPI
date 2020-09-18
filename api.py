@@ -8,6 +8,18 @@ import pyproj
 api = Blueprint('api', __name__, url_prefix='/api')
 
 
+def d1_fitting(d):
+    return 57.04183701 * x + -6583.68566879
+
+
+def d2_fitting(d):
+    return -1.42530169e-3 * (x**2) + 6.68895706e1 * x + -1.46801237e4
+
+
+def d3_fitting(d):
+    return -3.07406205e-7*(x**3) + 4.01853773e-3*(x**2) + 4.50963296e1*(x) - 8.39336896e2
+
+
 def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
     _, _, dist = grs80.inv(
         lon_c, lat_c,
@@ -21,7 +33,19 @@ def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query)
     else:
         return "outer"
 
-# /api/locations, [GET]
+
+def convert_tag_str_to_target_tag_list(tag_str):
+    # tag関連のパラメータ
+    trim_str_list = ["'", '"', "(", ")", "[", "]"]
+    support_tag_list = ["anime", "drama"]
+
+    for trim_str in trim_str_list:
+        tag_str = tag_str.replace(trim_str, "")
+    tag_token_list = [token.strip() for token in q_tag.split(",")]
+    return [target_tag for target_tag in support_tag_list if target_tag in tag_token_list]
+
+
+# /api/locations_in_circle, [GET]
 @api.route('/locations_in_circle', methods=['GET'])
 def get_locations_in_circle():
     """
@@ -41,10 +65,6 @@ def get_locations_in_circle():
     q_r = request.args.get('r', type=int)
     q_tag = request.args.get('tag', default="anime,drama", type=str)
     q_limit = request.args.get('limit', default=1000, type=int)
-
-    # tag関連のパラメータ
-    trim_str_list = ["'", '"', "(", ")", "[", "]"]
-    support_tag_list = ["anime", "drama"]
 
     # latに対するチェック
     if q_lat is None:
@@ -67,9 +87,7 @@ def get_locations_in_circle():
         return "parameter 'r' is too large", 400
 
     # tagに対する処理とチェック
-    for trim_str in trim_str_list:
-        q_tag = q_tag.replace(trim_str, "")
-    tag_token_list = [token.strip() for token in q_tag.split(",")]
+    tag_token_list = convert_tag_str_to_target_tag_list(q_tag)
     target_tag_list = [target_tag
                        for target_tag in support_tag_list
                        if target_tag in tag_token_list]

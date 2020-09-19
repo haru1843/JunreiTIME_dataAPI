@@ -23,26 +23,6 @@ def d3_fitting(budget):
     return -9.05759095e-06 * (budget**3) + 5.57103185e-02 * (budget**2) - 9.18636189*(budget) + 1.13578072e+04
 
 
-def check_circle_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
-
-    try:
-        _, _, dist = grs80.inv(
-            lon_c, lat_c,
-            lon_query, lat_query
-        )
-    except TypeError:
-        string = f"{type(lon_c)}, {type(lat_c)}"
-        string += f"{type(lon_query)}, {type(lat_query)}"
-        raise TypeError(string)
-
-    if dist <= r_query - r_c:
-        return "inner"
-    elif dist < r_query + r_c:
-        return "touch"
-    else:
-        return "outer"
-
-
 def check_some_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
 
     try:
@@ -98,9 +78,9 @@ def is_lon_wrong(lon):
 def is_r_wrong(r):
     if r is None:
         return {"msg": "parameter 'r' is required", "status_code": 400}
-    elif r < 100:
+    elif r < 0:
         return {"msg": "parameter 'r' is too small", "status_code": 400}
-    elif r > 100000:
+    elif r > 500000:
         return {"msg": "parameter 'r' is too large", "status_code": 400}
 
     return False

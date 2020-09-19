@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import os
 import pyproj
+from distutils.util import strtobool as s2b
+
 
 # Blueprint作成 http://host/api 以下のものはここで処理
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -46,7 +48,14 @@ def check_some_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_q
     return circles_state
 
 
-def convert_tag_str_to_target_tag_list(tag_str):
+def convert_boolean_str_to_bool(boolean_str: str):
+    try:
+        return s2b(boolean_str) != 0
+    except ValueError:
+        return None
+
+
+def convert_tag_str_to_target_tag_list(tag_str: str):
     # tag関連のパラメータ
     trim_str_list = ["'", '"', "(", ")", "[", "]"]
     support_tag_list = ["anime", "drama"]
@@ -57,7 +66,7 @@ def convert_tag_str_to_target_tag_list(tag_str):
     return [target_tag for target_tag in support_tag_list if target_tag in tag_token_list]
 
 
-def is_lat_wrong(lat):
+def is_lat_wrong(lat: float):
     if lat is None:
         return {"msg": "parameter 'lat' is required", "status_code": 400}
     elif not (-90.0 <= lat <= 90.0):
@@ -66,7 +75,7 @@ def is_lat_wrong(lat):
     return False
 
 
-def is_lon_wrong(lon):
+def is_lon_wrong(lon: float):
     if lon is None:
         return {"msg": "parameter 'lon' is required", "status_code": 400}
     elif not (-180.0 <= lon <= 180.0):
@@ -75,7 +84,7 @@ def is_lon_wrong(lon):
     return False
 
 
-def is_r_wrong(r):
+def is_r_wrong(r: int):
     if r is None:
         return {"msg": "parameter 'r' is required", "status_code": 400}
     elif r < 0:
@@ -86,7 +95,7 @@ def is_r_wrong(r):
     return False
 
 
-def is_budget_wrong(budget):
+def is_budget_wrong(budget: int):
     if budget is None:
         return {"msg": "parameter 'budget' is required", "status_code": 400}
     elif budget < 10:
@@ -97,7 +106,7 @@ def is_budget_wrong(budget):
     return False
 
 
-def get_fitting_func_from_func_type(func_type):
+def get_fitting_func_from_func_type(func_type: str):
     support_func_type_mapping = {
         "d1": d1_fitting, "d2": d2_fitting, "d3": d3_fitting
     }
@@ -108,7 +117,55 @@ def get_fitting_func_from_func_type(func_type):
     return support_func_type_mapping[func_type]
 
 
-def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list):
+def calc_locations_in_circle_for_no_clustered(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list, no_check=False):
+    clustered_data_dir = "./data/clustered_data/"
+
+    info_list = []
+
+    grs80 = pyproj.Geod(ellps="GRS80")
+
+    check_cluster_df = pd.read_pickle(
+        os.path.join(clustered_data_dir, "all.pkl")
+    )
+
+    target_num = len(check_cluster_df)
+    center_point_lat = [q_lat] * target_num
+    center_point_lon = [q_lon] * target_num
+    _, _, dist = grs80.inv(
+        center_point_lon, center_point_lat,
+        check_cluster_df["lon"].to_numpy(),
+        check_cluster_df["lat"].to_numpy()
+    )
+    check_cluster_df["distance"] = dist
+    if np.any(dist <= q_r):
+        info_list += check_cluster_df[dist <= q_r].to_dict(orient="records")
+
+    # 対象タグのみ取り出す
+    info_list = list(filter(lambda x: x["tag"] in target_tag_list, info_list))
+
+    # 制限前の総数を保存
+    total = len(info_list)
+
+    # クエリで与えられた緯度経度から近い要素順(距離昇順)でソート
+    info_list.sort(key=lambda x: x["distance"])
+
+    # responsの量を制限
+    if total > q_limit:
+        info_list = info_list[:q_limit]
+
+    # responseに加えるcount情報
+    count_dict = {
+        "total": total,
+        "limit": q_limit
+    }
+
+    return {
+        "count": count_dict,
+        "items": info_list
+    }, 200
+
+
+def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list, no_check=False):
     clustered_data_dir = "./data/clustered_data/"
 
     digit = 3
@@ -117,6 +174,7 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
     target_main_cluster_list = []
 
     cluster_info = {}
+    no_check_info = {}
     info_list = []
 
     main_cluster_info = pd.read_pickle(os.path.join(clustered_data_dir, "cluster_info.pkl"))
@@ -135,10 +193,21 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
     inner_nth_main_cluster_list = \
         main_cluster_info[circles_state == "inner"]["nth_cluster"].to_list()
 
-    have_subcluster = (circles_state == "touch") & main_cluster_info["subcluster"]
-    no_subcluster = (circles_state == "touch") & (~main_cluster_info["subcluster"])
-    touch_nth_main_cluster_list = main_cluster_info[have_subcluster]["nth_cluster"].to_list()
-    check_nth_main_cluster_list = main_cluster_info[no_subcluster]["nth_cluster"].to_list()
+    no_check_info["enable"] = no_check
+    if no_check:
+        tmp_len = len(inner_nth_main_cluster_list)
+
+        inner_nth_main_cluster_list += \
+            main_cluster_info[circles_state == "touch"]["nth_cluster"].to_list()
+        touch_nth_main_cluster_list = []
+        check_nth_main_cluster_list = []
+
+        no_check_info["missed_check"] = len(inner_nth_main_cluster_list) - tmp_len
+    else:
+        have_subcluster = (circles_state == "touch") & main_cluster_info["subcluster"]
+        no_subcluster = (circles_state == "touch") & (~main_cluster_info["subcluster"])
+        touch_nth_main_cluster_list = main_cluster_info[have_subcluster]["nth_cluster"].to_list()
+        check_nth_main_cluster_list = main_cluster_info[no_subcluster]["nth_cluster"].to_list()
 
     cluster_info["main_cluster"] = {
         "all": len(main_cluster_info),
@@ -274,7 +343,12 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
         "limit": q_limit
     }
 
-    return {"count": count_dict, "items": info_list, "cluster": cluster_info}, 200
+    return {
+        "count": count_dict,
+        "items": info_list,
+        "cluster": cluster_info,
+        "no_check": no_check_info
+    }, 200
 
 # /api/locations_within_budget, [GET]
 @api.route('/locations_within_budget', methods=['GET'])
@@ -286,46 +360,102 @@ def get_locations_within_budget():
     q_func_type = request.args.get('func_type', default="d2", type=str)
     q_tag = request.args.get('tag', default="anime,drama", type=str)
     q_limit = request.args.get('limit', default=1000, type=int)
+    q_no_check = request.args.get('no_check', default="false", type=str)
+    q_no_clustered = request.args.get('no_clustered', default="false", type=str)
 
     # latに対するチェック
     lat_is_wrong = is_lat_wrong(q_lat)
     if lat_is_wrong:
-        return lat_is_wrong["msg"], lat_is_wrong["status_code"]
-
+        return jsonify({
+            "msg": lat_is_wrong["msg"],
+            "invalid_param": "lat",
+        }), lat_is_wrong["status_code"]
     # lonに対するチェック
     lon_is_wrong = is_lon_wrong(q_lon)
     if lon_is_wrong:
-        return lon_is_wrong["msg"], lon_is_wrong["status_code"]
+        return jsonify({
+            "msg": lon_is_wrong["msg"],
+            "invalid_param": "lon",
+        }), lon_is_wrong["status_code"]
 
     # budgetに対するチェック
     budget_is_wrong = is_budget_wrong(q_budget)
     if budget_is_wrong:
-        return budget_is_wrong["msg"], budget_is_wrong["status_code"]
+        return jsonify({
+            "msg": budget_is_wrong["msg"],
+            "invalid_param": "budget",
+        }), budget_is_wrong["status_code"]
 
     # func_typeから対応する変換のための関数を取得
     fitting_func = get_fitting_func_from_func_type(q_func_type)
+    if fitting_func is None:
+        return jsonify({
+            "msg": f"Non-supporting function type : '{q_func_type}'",
+            "invalid_param": "func_type",
+        }), 400
     calc_r = fitting_func(q_budget)
 
     # rに対するチェック
     r_is_wrong = is_r_wrong(calc_r)
     if r_is_wrong:
-        return r_is_wrong["msg"], r_is_wrong["status_code"]
+        return jsonify({
+            "msg": r_is_wrong["msg"].replace("'r'", "'converted r'"),
+            "invalid_param": "budget",
+        }), r_is_wrong["status_code"]
 
     # tagに対する処理とチェック
     target_tag_list = convert_tag_str_to_target_tag_list(q_tag)
     if len(target_tag_list) <= 0:
-        return "parameter 'tag' is wrong", 400
+        return jsonify({
+            "msg": f"Non-supporting tag : '{q_tag}'",
+            "invalid_param": "tag",
+        }), 400
 
+    # limitに対するチェック
     if q_limit <= 0:
-        return "parameter 'r' must be greater then 0", 400
+        return jsonify({
+            "msg": "parameter 'limit' must be greater then 0",
+            "invalid_param": "limit",
+        }), 400
+
+    # no_checkに対する変換とチェック
+    if q_no_check == "":
+        converted_no_check = True
+    else:
+        converted_no_check = convert_boolean_str_to_bool(q_no_check)
+        if converted_no_check is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'no_check' : {q_no_check}",
+                "invalid_param": "no_check",
+            }), 400
+
+    # no_clusteredに対する変換とチェック
+    if q_no_clustered == "":
+        converted_no_clustered = True
+    else:
+        converted_no_clustered = convert_boolean_str_to_bool(q_no_clustered)
+        if converted_no_clustered is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'no_clustered' : {q_no_clustered}",
+                "invalid_param": "no_clustered",
+            }), 400
 
     # 全体の処理
-    rtn_dict, status_code = calc_locations_in_circle(
-        q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
-        q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list
-    )
+    if converted_no_clustered:
+        rtn_dict, status_code = calc_locations_in_circle_for_no_clustered(
+            q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
+            q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
+        )
+    else:
+        rtn_dict, status_code = calc_locations_in_circle(
+            q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
+            q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
+            no_check=converted_no_check
+        )
     rtn_dict["convert"] = {"budget": q_budget, "distance": calc_r}
-    return rtn_dict, status_code
+    rtn_dict["no_clustered"] = {"enable": converted_no_clustered}
+    rtn_dict["tag"] = target_tag_list
+    return jsonify(rtn_dict), status_code
 
 # /api/locations_in_circle, [GET]
 @api.route('/locations_in_circle', methods=['GET'])
@@ -347,35 +477,84 @@ def get_locations_in_circle():
     q_r = request.args.get('r', type=int)
     q_tag = request.args.get('tag', default="anime,drama", type=str)
     q_limit = request.args.get('limit', default=1000, type=int)
+    q_no_check = request.args.get('no_check', default="false", type=str)
+    q_no_clustered = request.args.get('no_clustered', default="false", type=str)
 
     # latに対するチェック
     lat_is_wrong = is_lat_wrong(q_lat)
     if lat_is_wrong:
-        return lat_is_wrong["msg"], lat_is_wrong["status_code"]
-
+        return jsonify({
+            "msg": lat_is_wrong["msg"],
+            "invalid_param": "lat",
+        }), lat_is_wrong["status_code"]
     # lonに対するチェック
     lon_is_wrong = is_lon_wrong(q_lon)
     if lon_is_wrong:
-        return lon_is_wrong["msg"], lon_is_wrong["status_code"]
+        return jsonify({
+            "msg": lon_is_wrong["msg"],
+            "invalid_param": "lon",
+        }), lon_is_wrong["status_code"]
 
     # rに対するチェック
     r_is_wrong = is_r_wrong(q_r)
     if r_is_wrong:
-        return r_is_wrong["msg"], r_is_wrong["status_code"]
+        return jsonify({
+            "msg": r_is_wrong["msg"],
+            "invalid_param": "r",
+        }), r_is_wrong["status_code"]
 
     # tagに対する処理とチェック
     target_tag_list = convert_tag_str_to_target_tag_list(q_tag)
     if len(target_tag_list) <= 0:
-        return "parameter 'tag' is wrong", 400
+        return jsonify({
+            "msg": f"Non-supporting tag : '{q_tag}'",
+            "invalid_param": "tag",
+        }), 400
 
+    # limitに対するチェック
     if q_limit <= 0:
-        return "parameter 'r' must be greater then 0", 400
+        return jsonify({
+            "msg": "parameter 'limit' must be greater then 0",
+            "invalid_param": "limit",
+        }), 400
+
+    # no_checkに対する変換とチェック
+    if q_no_check == "":
+        converted_no_check = True
+    else:
+        converted_no_check = convert_boolean_str_to_bool(q_no_check)
+        if converted_no_check is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'no_check' : {q_no_check}",
+                "invalid_param": "no_check",
+            }), 400
+
+    # no_clusteredに対する変換とチェック
+    if q_no_clustered == "":
+        converted_no_clustered = True
+    else:
+        converted_no_clustered = convert_boolean_str_to_bool(q_no_clustered)
+        if converted_no_clustered is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'no_clustered' : {q_no_clustered}",
+                "invalid_param": "no_clustered",
+            }), 400
 
     # 全体の処理
-    rtn_dict, status_code = calc_locations_in_circle(
-        q_lat=q_lat, q_lon=q_lon, q_r=q_r,
-        q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list
-    )
+    if converted_no_clustered:
+        rtn_dict, status_code = calc_locations_in_circle_for_no_clustered(
+            q_lat=q_lat, q_lon=q_lon, q_r=q_r,
+            q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
+        )
+    else:
+        rtn_dict, status_code = calc_locations_in_circle(
+            q_lat=q_lat, q_lon=q_lon, q_r=q_r,
+            q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
+            no_check=converted_no_check
+        )
+
+    rtn_dict["no_clustered"] = {"enable": converted_no_clustered}
+    rtn_dict["tag"] = target_tag_list
     return jsonify(rtn_dict), status_code
 
 # /api/locations, [GET]

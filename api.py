@@ -23,7 +23,7 @@ def d3_fitting(budget):
     return -9.05759095e-06 * (budget**3) + 5.57103185e-02 * (budget**2) - 9.18636189*(budget) + 1.13578072e+04
 
 
-def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
+def check_circle_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
 
     try:
         _, _, dist = grs80.inv(
@@ -41,6 +41,29 @@ def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query)
         return "touch"
     else:
         return "outer"
+
+
+def check_some_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
+
+    try:
+        _, _, dist = grs80.inv(
+            lon_c, lat_c,
+            lon_query, lat_query
+        )
+    except TypeError:
+        string = f"{type(lon_c)}, {type(lat_c)}"
+        string += f"{type(lon_query)}, {type(lat_query)}"
+        raise TypeError(string)
+
+    dist = np.array(dist)
+
+    # numpyの文字列型 '<U5' を利用
+    circles_state = np.empty(len(dist), dtype="<U5")
+
+    circles_state[dist <= r_query - r_c] = "inner"
+    circles_state[(dist < r_query + r_c) & (circles_state == "")] = "touch"
+    circles_state[circles_state == ""] = "outer"
+    return circles_state
 
 
 def convert_tag_str_to_target_tag_list(tag_str):
@@ -106,171 +129,166 @@ def get_fitting_func_from_func_type(func_type):
 
 
 def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list):
-    # 全体の処理
     clustered_data_dir = "./data/clustered_data/"
-    main_cluster_info = pd.read_pickle(os.path.join(clustered_data_dir, "cluster_info.pkl"))
 
     digit = 3
+    fmt_str = "{:0" + str(digit) + "}/"
 
     target_main_cluster_list = []
 
-    inner_cluster = []  # 完全に内側にあるもの. 判別する必要なし
-    touch_cluster = []  # サブクラスタを持ち, 触れているもの. サブクラスタの判定を行う
+    cluster_info = {}
+    info_list = []
 
-    check_cluster = []  # サブクラスタを持っていない, 触れているもの. 各点においてチェックが必要
-
-    cluster_info = {
-        "main_cluster": {},
-        "sub_cluster": {}
-    }
-
+    main_cluster_info = pd.read_pickle(os.path.join(clustered_data_dir, "cluster_info.pkl"))
     grs80 = pyproj.Geod(ellps="GRS80")
 
-    # メインクラスタに対するイテレータ処理
-    format_str = "{:0" + str(digit) + "}/"
-    for idx in range(len(main_cluster_info)):
-        nth_cluster_info = main_cluster_info.iloc[idx]
-        nth_cluster = nth_cluster_info["nth_cluster"]
+    # メインクラスタに対する, クラスタ内包状態の確認
+    main_cluster_num = len(main_cluster_info)
+    circles_state = check_some_circles_state(
+        grs80,
+        main_cluster_info["lat"].to_numpy(),
+        main_cluster_info["lon"].to_numpy(),
+        main_cluster_info["max"].to_numpy(),
+        [q_lat]*main_cluster_num, [q_lon]*main_cluster_num, [q_r]*main_cluster_num
+    )
 
-        # 距離の比較
-        circles_state = check_circles_state(
-            grs80,
-            nth_cluster_info["lat"],
-            nth_cluster_info["lon"],
-            nth_cluster_info["max"],
-            q_lat, q_lon, q_r
-        )
+    inner_nth_main_cluster_list = \
+        main_cluster_info[circles_state == "inner"]["nth_cluster"].to_list()
 
-        if circles_state == "outer":
-            continue
-        elif circles_state == "inner":
-            dir_name = format_str.format(nth_cluster)
-            inner_cluster.append(os.path.join(clustered_data_dir, dir_name))
-        elif circles_state == "touch":
-            if not nth_cluster_info["subcluster"]:
-                # サブクラスタを持っていない場合
-                dir_name = format_str.format(nth_cluster)
-                check_cluster.append(os.path.join(clustered_data_dir, dir_name))
-            else:
-                # サブクラスタを持っている場合
-                dir_name = format_str.format(nth_cluster)
-                touch_cluster.append(os.path.join(clustered_data_dir, dir_name))
-        else:
-            return "circles state invalid", 500
+    have_subcluster = (circles_state == "touch") & main_cluster_info["subcluster"]
+    no_subcluster = (circles_state == "touch") & (~main_cluster_info["subcluster"])
+    touch_nth_main_cluster_list = main_cluster_info[have_subcluster]["nth_cluster"].to_list()
+    check_nth_main_cluster_list = main_cluster_info[no_subcluster]["nth_cluster"].to_list()
 
     cluster_info["main_cluster"] = {
         "all": len(main_cluster_info),
-        "inner": len(inner_cluster),
+        "inner": len(inner_nth_main_cluster_list),
         "touch": {
-            "have_subclusters": len(check_cluster),
-            "have_no_subcluster": len(touch_cluster),
+            "have_subclusters": len(check_nth_main_cluster_list),
+            "have_no_subcluster": len(touch_nth_main_cluster_list),
         },
-        "outer": len(main_cluster_info) - (len(inner_cluster) +
-                                           len(check_cluster) +
-                                           len(touch_cluster))
+        "outer": len(main_cluster_info) - (len(inner_nth_main_cluster_list) +
+                                           len(check_nth_main_cluster_list) +
+                                           len(touch_nth_main_cluster_list))
     }
-    # print("\n\n")
-    # print("---- "*9)
-    # print("---- "*9)
-    # print(f"all_main_cluster : {len(main_cluster_info)}")
-    # print(f"    + inner : {len(inner_cluster)}")
-    # print(f"    + touch(have subcluster) : {len(touch_cluster)}")
-    # print(f"    + touch(haven't subcluster) : {len(check_cluster)}")
-    # print("---- "*9)
-    # print("---- "*9, end="\n\n")
 
-    # サブクラスタに対するイテレータ処理
-    for sub_cluster_dir in touch_cluster:
-        sub_cluster_info = pd.read_pickle(os.path.join(sub_cluster_dir, "cluster_info.pkl"))
+    # サブクラスタに対する, クラスタ内包状態の確認
+    # メインクラスタごとに, サブクラスタの情報を読み込む(親クラスタ番号も付与)
+    if len(touch_nth_main_cluster_list) > 0:
+        sub_cluster_info = pd.concat([
+            pd.read_pickle(
+                os.path.join(clustered_data_dir, fmt_str.format(
+                    touch_nth_cluster), "cluster_info.pkl")
+            ).assign(parent_nth_cluster=touch_nth_cluster)
+            for touch_nth_cluster in touch_nth_main_cluster_list
+        ]).reset_index(drop=True)
 
-        for idx in range(len(sub_cluster_info)):
-            nth_cluster_info = sub_cluster_info.iloc[idx]
-            nth_cluster = nth_cluster_info["nth_cluster"]
+        sub_cluster_num = len(sub_cluster_info)
+        circles_state = check_some_circles_state(
+            grs80,
+            sub_cluster_info["lat"].to_numpy(),
+            sub_cluster_info["lon"].to_numpy(),
+            sub_cluster_info["max"].to_numpy(),
+            [q_lat]*sub_cluster_num, [q_lon]*sub_cluster_num, [q_r]*sub_cluster_num
+        )
 
-            # 距離の比較
-            circles_state = check_circles_state(
-                grs80,
-                nth_cluster_info["lat"],
-                nth_cluster_info["lon"],
-                nth_cluster_info["max"],
-                q_lat, q_lon, q_r
+        inner_nth_sub_cluster_list = \
+            sub_cluster_info[circles_state == "inner"][[
+                "parent_nth_cluster", "nth_cluster"]].values.tolist()
+
+        check_nth_sub_cluster_list = \
+            sub_cluster_info[circles_state == "touch"][[
+                "parent_nth_cluster", "nth_cluster"]].values.tolist()
+
+        cluster_info["sub_cluster"] = {
+            "all": len(sub_cluster_info),
+            "inner": len(inner_nth_sub_cluster_list),
+            "touch": len(check_nth_sub_cluster_list),
+            "outer": len(sub_cluster_info) - (
+                len(inner_nth_sub_cluster_list) + len(check_nth_sub_cluster_list)
             )
+        }
+    else:
+        cluster_info["sub_cluster"] = {"all": 0}
 
-            if circles_state == "outer":
-                continue
-            elif circles_state == "inner":
-                dir_name = format_str.format(nth_cluster)
-                inner_cluster.append(os.path.join(clustered_data_dir, dir_name))
-            elif circles_state == "touch":
-                if not nth_cluster_info["subcluster"]:
-                    # サブクラスタを持っていない場合
-                    dir_name = format_str.format(nth_cluster)
-                    check_cluster.append(os.path.join(clustered_data_dir, dir_name))
-                else:
-                    # サブクラスタを持っている場合
-                    dir_name = format_str.format(nth_cluster)
-                    touch_cluster.append(os.path.join(clustered_data_dir, dir_name))
-            else:
-                return "circles state invalid", 500
-
-    info_list = []
-
+    # touch-clusterに対する処理
     # 内包円でなく, 重なっているクラスタに対して, 各要素で範囲内にあるかをチェック
-    for check_cluster_dir in check_cluster:
-        all_df = pd.read_pickle(os.path.join(check_cluster_dir, "all.pkl"))
+    check_cluster_dir_path_list = [
+        os.path.join(clustered_data_dir, fmt_str.format(check_nth_main_cluster))
+        for check_nth_main_cluster in check_nth_main_cluster_list
+    ]
+    if len(touch_nth_main_cluster_list) > 0:
+        check_cluster_dir_path_list += [
+            os.path.join(clustered_data_dir,
+                         fmt_str.format(parent_cluster),
+                         fmt_str.format(check_nth_sub_cluster))
+            for parent_cluster, check_nth_sub_cluster in check_nth_sub_cluster_list
+        ]
 
-        # クラスターの情報の計算
-        target_num = len(all_df)
+    if len(check_cluster_dir_path_list) > 0:
+        check_cluster_df = pd.concat([
+            pd.read_pickle(os.path.join(check_cluster_dir_path, "all.pkl"))
+            for check_cluster_dir_path in check_cluster_dir_path_list
+        ])
+        target_num = len(check_cluster_df)
         center_point_lat = [q_lat] * target_num
         center_point_lon = [q_lon] * target_num
-
         _, _, dist = grs80.inv(
             center_point_lon, center_point_lat,
-            all_df["lon"].to_numpy(),
-            all_df["lat"].to_numpy()
+            check_cluster_df["lon"].to_numpy(),
+            check_cluster_df["lat"].to_numpy()
         )
+        check_cluster_df["distance"] = dist
+        if np.any(dist <= q_r):
+            info_list += check_cluster_df[dist <= q_r].to_dict(orient="records")
 
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        all_df["distance"] = dist
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-        if sum(dist <= q_r) > 0:
-            info_list += all_df[dist <= q_r].to_dict(orient="records")
-
+    # inner-clusterに対する処理
     # クラスタが完全に内包されている場合, その要素は全て追加
-    for inner_cluster_dir in inner_cluster:
-        all_df = pd.read_pickle(os.path.join(inner_cluster_dir, "all.pkl"))
+    inner_cluster_dir_path_list = [
+        os.path.join(clustered_data_dir, fmt_str.format(inner_nth_main_cluster))
+        for inner_nth_main_cluster in inner_nth_main_cluster_list
+    ]
+    if len(touch_nth_main_cluster_list) > 0:
+        inner_cluster_dir_path_list += [
+            os.path.join(clustered_data_dir,
+                         fmt_str.format(parent_cluster),
+                         fmt_str.format(inner_nth_sub_cluster))
+            for parent_cluster, inner_nth_sub_cluster in inner_nth_sub_cluster_list
+        ]
 
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        # クラスターの情報の計算
-        target_num = len(all_df)
+    if len(inner_cluster_dir_path_list) > 0:
+        inner_cluster_df = pd.concat([
+            pd.read_pickle(os.path.join(inner_cluster_dir_path, "all.pkl"))
+            for inner_cluster_dir_path in inner_cluster_dir_path_list
+        ])
+
+        # inner-clusterでは距離の比較は必要ないが, レコードに距離情報を付与させるため計算する
+        target_num = len(inner_cluster_df)
         center_point_lat = [q_lat] * target_num
         center_point_lon = [q_lon] * target_num
-
         _, _, dist = grs80.inv(
             center_point_lon, center_point_lat,
-            all_df["lon"].to_numpy(),
-            all_df["lat"].to_numpy()
+            inner_cluster_df["lon"].to_numpy(),
+            inner_cluster_df["lat"].to_numpy()
         )
-        all_df["distance"] = dist
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        inner_cluster_df["distance"] = dist
+        if len(inner_cluster_df) > 0:
+            info_list += inner_cluster_df.to_dict(orient="records")
 
-        if len(all_df) > 0:
-            info_list += all_df.to_dict(orient="records")
-
+    # 対象タグのみ取り出す
     info_list = list(filter(lambda x: x["tag"] in target_tag_list, info_list))
 
+    # 制限前の総数を保存
     total = len(info_list)
 
+    # クエリで与えられた緯度経度から近い要素順(距離昇順)でソート
     info_list.sort(key=lambda x: x["distance"])
 
+    # responsの量を制限
     if total > q_limit:
         info_list = info_list[:q_limit]
 
+    # responseに加えるcount情報
     count_dict = {
         "total": total,
         "limit": q_limit

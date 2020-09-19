@@ -245,4 +245,3 @@ LocationObject
 ```
 https://junrei-time-dataapi.herokuapp.com/api/locations_within_budget?lat=35.556243&lon=139.662233&budget=300&limit=10&tag=anime&func_type=d2
 ```
-

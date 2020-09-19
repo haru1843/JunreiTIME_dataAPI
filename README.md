@@ -99,9 +99,20 @@ https://junrei-time-dataapi.herokuapp.com/api/random_locations?num=3
 
 ```
 responce
-    ├convert
-    │   ├budget
-    │   └distance
+    ├cluster
+    │   ├main_cluster
+    │   │   ├all
+    │   │   ├inner
+    │   │   ├outer
+    │   │   └touch
+    │   │       ├have_no_subcluster
+    │   │       └have_subclusters
+    │   │   
+    │   └sub_cluster
+    │       ├all
+    │       ├inner
+    │       ├outer
+    │       └touch
     │
     ├count
     │   ├limit
@@ -110,14 +121,29 @@ responce
     └items : LIST[LocationObject]
 ```
 
-| key                       |          valueの内容           | valueの型 |
-|:--------------------------|:------------------------------:|:---------:|
-| `"count"`                 |            住所番号            |           |
-| ├`"limit"`                |           取得上限数           |    int    |
-| └`"total"`                |         実際の総hit数          |    int    |
-|                           |                                |           |
-| `"items"`                 |       関連地情報のリスト       |           |
-| └`"LIST[LocationObject]"` | `"LocationObject"`の内容は後述 |           |
+| key                          |                valueの内容                 | valueの型 |
+|:-----------------------------|:------------------------------------------:|:---------:|
+| `"cluster"`                  |                クラスタ情報                |           |
+| ├`"main_cluster"`            | 計算の対象となったメインのクラスタについて |           |
+| │　├`"all"`                  |                    総数                    |    int    |
+| │　├`"inner"`                |        完全内包されていたクラスタ数        |    int    |
+| │　├`"outer"`                |             無関係のクラスタ数             |    int    |
+| │　└`"touch"`                |       重なる領域が存在したクラスタ数       |           |
+| │　　├`"have_no_subcluster"` |         内のサブクラスタを持つもの         |    int    |
+| │　　└`"have_subclusters"`   |       内のサブクラスタを持たないもの       |    int    |
+| │                            |                                            |           |
+| └`"sub_cluster"`             |    計算対象となったサブクラスタについて    |    int    |
+| .　　├`"all"`                |                    総数                    |    int    |
+| .　　├`"inner"`              |        完全内包されていたクラスタ数        |    int    |
+| .　　├`"outer"`              |             無関係のクラスタ数             |    int    |
+| .　　└`"touch"`              |       重なる領域が存在したクラスタ数       |           |
+|                              |                                            |           |
+| `"count"`                    |                  住所番号                  |           |
+| ├`"limit"`                   |                 取得上限数                 |    int    |
+| └`"total"`                   |               実際の総hit数                |    int    |
+|                              |                                            |           |
+| `"items"`                    |             関連地情報のリスト             |           |
+| └`"LIST[LocationObject]"`    |       `"LocationObject"`の内容は後述       |           |
 
 
 #### LocatoinObject
@@ -178,6 +204,21 @@ https://junrei-time-dataapi.herokuapp.com/api/locations_in_circle?lat=35.556243&
 
 ```
 responce
+    ├cluster
+    │   ├main_cluster
+    │   │   ├all
+    │   │   ├inner
+    │   │   ├outer
+    │   │   └touch
+    │   │       ├have_no_subcluster
+    │   │       └have_subclusters
+    │   │   
+    │   └sub_cluster
+    │       ├all
+    │       ├inner
+    │       ├outer
+    │       └touch
+    │
     ├convert
     │   ├budget
     │   └distance
@@ -189,18 +230,33 @@ responce
     └items : LIST[LocationObject]
 ```
 
-| key                       |          valueの内容           | valueの型 |
-|:--------------------------|:------------------------------:|:---------:|
-| `"convert"`               |      金額→距離の変換情報       |           |
-| ├`"budget"`               |              金額              |    int    |
-| └`"distance"`             |          変換後の距離          |   float   |
-|                           |                                |           |
-| `"count"`                 |            住所番号            |           |
-| ├`"limit"`                |           取得上限数           |    int    |
-| └`"total"`                |         実際の総hit数          |    int    |
-|                           |                                |           |
-| `"items"`                 |       関連地情報のリスト       |           |
-| └`"LIST[LocationObject]"` | `"LocationObject"`の内容は後述 |           |
+| key                          |                valueの内容                 | valueの型 |
+|:-----------------------------|:------------------------------------------:|:---------:|
+| `"cluster"`                  |                クラスタ情報                |           |
+| ├`"main_cluster"`            | 計算の対象となったメインのクラスタについて |           |
+| │　├`"all"`                  |                    総数                    |    int    |
+| │　├`"inner"`                |        完全内包されていたクラスタ数        |    int    |
+| │　├`"outer"`                |             無関係のクラスタ数             |    int    |
+| │　└`"touch"`                |       重なる領域が存在したクラスタ数       |           |
+| │　　├`"have_no_subcluster"` |         内のサブクラスタを持つもの         |    int    |
+| │　　└`"have_subclusters"`   |       内のサブクラスタを持たないもの       |    int    |
+| │                            |                                            |           |
+| └`"sub_cluster"`             |    計算対象となったサブクラスタについて    |    int    |
+| .　　├`"all"`                |                    総数                    |    int    |
+| .　　├`"inner"`              |        完全内包されていたクラスタ数        |    int    |
+| .　　├`"outer"`              |             無関係のクラスタ数             |    int    |
+| .　　└`"touch"`              |       重なる領域が存在したクラスタ数       |           |
+|                              |                                            |           |
+| `"convert"`                  |            金額→距離の変換情報             |           |
+| ├`"budget"`                  |                    金額                    |    int    |
+| └`"distance"`                |                変換後の距離                |   float   |
+|                              |                                            |           |
+| `"count"`                    |                  住所番号                  |           |
+| ├`"limit"`                   |                 取得上限数                 |    int    |
+| └`"total"`                   |               実際の総hit数                |    int    |
+|                              |                                            |           |
+| `"items"`                    |             関連地情報のリスト             |           |
+| └`"LIST[LocationObject]"`    |       `"LocationObject"`の内容は後述       |           |
 
 
 #### LocatoinObject

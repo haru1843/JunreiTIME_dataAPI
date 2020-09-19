@@ -82,13 +82,15 @@ https://junrei-time-dataapi.herokuapp.com/api/random_locations?num=3
 ### パラメータ
 
 
-| パラメータ名 | 必須 |                           概要                           | 型名  | デフォルト    | 値域                              | 備考                |
-|:------------:|:----:|:--------------------------------------------------------:|-------|---------------|-----------------------------------|---------------------|
-|     lat      |  ✓   |             中心地の緯度(北極=90, 南極=-90)              | float |               | `-90.0 <= lat <= 90`              | 0は赤道             |
-|     lon      |  ✓   |                中心地の経度(東→正, 西→負)                | float |               | `-180.0 <= lon <= 180.0`          | -180と180は同じ地点 |
-|      r       |  ✓   |             中心地からの対象半径(単位は`m`)              | int   |               | `0 <= r <= 500000`                |                     |
-|     tag      |      | 選択対象を`anime`か`drama`, もしくはその両方を選択できる | str   | "anime,drama" | `"anime", "drama", "anime,drama"` |                     |
-|    limit     |      | 取得個数を制限する. 制限時は距離の近いものが取得される.  | int   | 1000          | `0 < limit`                       |                     |
+| パラメータ名 | 必須 |                           概要                           | 型名  | デフォルト    | 値域                                      | 備考                          |
+|:------------:|:----:|:--------------------------------------------------------:|-------|---------------|-------------------------------------------|-------------------------------|
+|     lat      |  ✓   |             中心地の緯度(北極=90, 南極=-90)              | float |               | `-90.0 <= lat <= 90`                      | 0は赤道                       |
+|     lon      |  ✓   |                中心地の経度(東→正, 西→負)                | float |               | `-180.0 <= lon <= 180.0`                  | -180と180は同じ地点           |
+|      r       |  ✓   |             中心地からの対象半径(単位は`m`)              | int   |               | `0 <= r <= 500000`                        |                               |
+|     tag      |      | 選択対象を`anime`か`drama`, もしくはその両方を選択できる | str   | "anime,drama" | `"anime", "drama", "anime,drama"`         |                               |
+|    limit     |      | 取得個数を制限する. 制限時は距離の近いものが取得される.  | int   | 1000          | `0 < limit`                               |                               |
+|   no_check   |      |                          (後述)                          | str   | `"false"`     | `"true"`, `"false"`などのそれっぽい文字列 | `&no_check`だと`true`扱い     |
+| no_clustered |      |                          (後述)                          | str   | `"false"`     | `"true"`, `"false"`などのそれっぽい文字列 | `&no_clustered`だと`true`扱い |
 
 各パラメータにおいて, 値域を満たさない場合, `400 BadRequest` が返却される
 
@@ -118,7 +120,18 @@ responce
     │   ├limit
     │   └total
     │
-    └items : LIST[LocationObject]
+    ├items : LIST[LocationObject]
+    │
+    ├no_check
+    │   ├enable
+    │   └(missed_check)
+    │
+    ├no_clustered
+    │   └enable
+    │
+    ├processing_time
+    │
+    └tag : List
 ```
 
 | key                          |                valueの内容                 | valueの型 |
@@ -227,7 +240,18 @@ responce
     │   ├limit
     │   └total
     │
-    └items : LIST[LocationObject]
+    ├items : LIST[LocationObject]
+    │
+    ├no_check
+    │   ├enable
+    │   └(missed_check)
+    │
+    ├no_clustered
+    │   └enable
+    │
+    ├processing_time
+    │
+    └tag : List
 ```
 
 | key                          |                valueの内容                 | valueの型 |

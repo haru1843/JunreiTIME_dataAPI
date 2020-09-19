@@ -4,7 +4,7 @@ import numpy as np
 import os
 import pyproj
 from distutils.util import strtobool as s2b
-
+import time
 
 # Blueprint作成 http://host/api 以下のものはここで処理
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -353,6 +353,8 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list,
 # /api/locations_within_budget, [GET]
 @api.route('/locations_within_budget', methods=['GET'])
 def get_locations_within_budget():
+    start_time = time.time()
+
     # クエリパラメータの取得
     q_lat = request.args.get('lat', type=float)
     q_lon = request.args.get('lon', type=float)
@@ -455,11 +457,14 @@ def get_locations_within_budget():
     rtn_dict["convert"] = {"budget": q_budget, "distance": calc_r}
     rtn_dict["no_clustered"] = {"enable": converted_no_clustered}
     rtn_dict["tag"] = target_tag_list
+    rtn_dict["processing_time"] = time.time() - start_time
     return jsonify(rtn_dict), status_code
 
 # /api/locations_in_circle, [GET]
 @api.route('/locations_in_circle', methods=['GET'])
 def get_locations_in_circle():
+    start_time = time.time()
+
     """
     hoge
 
@@ -555,6 +560,7 @@ def get_locations_in_circle():
 
     rtn_dict["no_clustered"] = {"enable": converted_no_clustered}
     rtn_dict["tag"] = target_tag_list
+    rtn_dict["processing_time"] = time.time() - start_time
     return jsonify(rtn_dict), status_code
 
 # /api/locations, [GET]

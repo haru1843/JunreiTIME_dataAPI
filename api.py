@@ -119,6 +119,11 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
 
     check_cluster = []  # サブクラスタを持っていない, 触れているもの. 各点においてチェックが必要
 
+    cluster_info = {
+        "main_cluster": {},
+        "sub_cluster": {}
+    }
+
     grs80 = pyproj.Geod(ellps="GRS80")
 
     # メインクラスタに対するイテレータ処理
@@ -153,15 +158,26 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
         else:
             return "circles state invalid", 500
 
-    print("\n\n")
-    print("---- "*9)
-    print("---- "*9)
-    print(f"all_main_cluster : {len(main_cluster_info)}")
-    print(f"    + inner : {len(inner_cluster)}")
-    print(f"    + touch(have subcluster) : {len(touch_cluster)}")
-    print(f"    + touch(haven't subcluster) : {len(check_cluster)}")
-    print("---- "*9)
-    print("---- "*9, end="\n\n")
+    cluster_info["main_cluster"] = {
+        "all": len(main_cluster_info),
+        "inner": len(inner_cluster),
+        "touch": {
+            "have_subclusters": len(check_cluster),
+            "have_no_subcluster": len(touch_cluster),
+        },
+        "outer": len(main_cluster_info) - (len(inner_cluster) +
+                                           len(check_cluster) +
+                                           len(touch_cluster))
+    }
+    # print("\n\n")
+    # print("---- "*9)
+    # print("---- "*9)
+    # print(f"all_main_cluster : {len(main_cluster_info)}")
+    # print(f"    + inner : {len(inner_cluster)}")
+    # print(f"    + touch(have subcluster) : {len(touch_cluster)}")
+    # print(f"    + touch(haven't subcluster) : {len(check_cluster)}")
+    # print("---- "*9)
+    # print("---- "*9, end="\n\n")
 
     # サブクラスタに対するイテレータ処理
     for sub_cluster_dir in touch_cluster:
@@ -260,7 +276,7 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
         "limit": q_limit
     }
 
-    return {"count": count_dict, "items": info_list}, 200
+    return {"count": count_dict, "items": info_list, "cluster": cluster_info}, 200
 
 # /api/locations_within_budget, [GET]
 @api.route('/locations_within_budget', methods=['GET'])

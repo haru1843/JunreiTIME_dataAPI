@@ -24,10 +24,16 @@ def d3_fitting(budget):
 
 
 def check_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
-    _, _, dist = grs80.inv(
-        lon_c, lat_c,
-        lon_query, lat_query
-    )
+
+    try:
+        _, _, dist = grs80.inv(
+            lon_c, lat_c,
+            lon_query, lat_query
+        )
+    except TypeError:
+        string = f"{type(lon_c)}, {type(lat_c)}"
+        string += f"{type(lon_query)}, {type(lat_query)}"
+        raise TypeError(string)
 
     if dist <= r_query - r_c:
         return "inner"
@@ -147,35 +153,49 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
         else:
             return "circles state invalid", 500
 
+    print("\n\n")
+    print("---- "*9)
+    print("---- "*9)
+    print(f"all_main_cluster : {len(main_cluster_info)}")
+    print(f"    + inner : {len(inner_cluster)}")
+    print(f"    + touch(have subcluster) : {len(touch_cluster)}")
+    print(f"    + touch(haven't subcluster) : {len(check_cluster)}")
+    print("---- "*9)
+    print("---- "*9, end="\n\n")
+
     # サブクラスタに対するイテレータ処理
     for sub_cluster_dir in touch_cluster:
         sub_cluster_info = pd.read_pickle(os.path.join(sub_cluster_dir, "cluster_info.pkl"))
 
-        # 距離の比較
-        circles_state = check_circles_state(
-            grs80,
-            sub_cluster_info["lat"],
-            sub_cluster_info["lon"],
-            sub_cluster_info["max"],
-            q_lat, q_lon, q_r
-        )
+        for idx in range(len(sub_cluster_info)):
+            nth_cluster_info = sub_cluster_info.iloc[idx]
+            nth_cluster = nth_cluster_info["nth_cluster"]
 
-        if circles_state == "outer":
-            continue
-        elif circles_state == "inner":
-            dir_name = format_str.format(nth_cluster)
-            inner_cluster.append(os.path.join(clustered_data_dir, dir_name))
-        elif circles_state == "touch":
-            if not nth_cluster_info["subcluster"]:
-                # サブクラスタを持っていない場合
+            # 距離の比較
+            circles_state = check_circles_state(
+                grs80,
+                nth_cluster_info["lat"],
+                nth_cluster_info["lon"],
+                nth_cluster_info["max"],
+                q_lat, q_lon, q_r
+            )
+
+            if circles_state == "outer":
+                continue
+            elif circles_state == "inner":
                 dir_name = format_str.format(nth_cluster)
-                check_cluster.append(os.path.join(clustered_data_dir, dir_name))
+                inner_cluster.append(os.path.join(clustered_data_dir, dir_name))
+            elif circles_state == "touch":
+                if not nth_cluster_info["subcluster"]:
+                    # サブクラスタを持っていない場合
+                    dir_name = format_str.format(nth_cluster)
+                    check_cluster.append(os.path.join(clustered_data_dir, dir_name))
+                else:
+                    # サブクラスタを持っている場合
+                    dir_name = format_str.format(nth_cluster)
+                    touch_cluster.append(os.path.join(clustered_data_dir, dir_name))
             else:
-                # サブクラスタを持っている場合
-                dir_name = format_str.format(nth_cluster)
-                touch_cluster.append(os.path.join(clustered_data_dir, dir_name))
-        else:
-            return "circles state invalid", 500
+                return "circles state invalid", 500
 
     info_list = []
 
@@ -339,7 +359,7 @@ def get_locations_in_circle():
 
     # 全体の処理
     rtn_dict, status_code = calc_locations_in_circle(
-        q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
+        q_lat=q_lat, q_lon=q_lon, q_r=q_r,
         q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list
     )
     return jsonify(rtn_dict), status_code

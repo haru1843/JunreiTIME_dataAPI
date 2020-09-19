@@ -144,8 +144,8 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list)
         "all": len(main_cluster_info),
         "inner": len(inner_nth_main_cluster_list),
         "touch": {
-            "have_subclusters": len(check_nth_main_cluster_list),
-            "have_no_subcluster": len(touch_nth_main_cluster_list),
+            "have_subclusters": len(touch_nth_main_cluster_list),
+            "have_no_subcluster": len(check_nth_main_cluster_list),
         },
         "outer": len(main_cluster_info) - (len(inner_nth_main_cluster_list) +
                                            len(check_nth_main_cluster_list) +

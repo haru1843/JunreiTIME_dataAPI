@@ -5,9 +5,30 @@ import os
 import pyproj
 from distutils.util import strtobool as s2b
 import time
+from pykakasi import kakasi
+
 
 # Blueprint作成 http://host/api 以下のものはここで処理
 api = Blueprint('api', __name__, url_prefix='/api')
+
+
+class StringFormatter:
+    def __init__(self):
+        trim_char = [" ", "　", "(", ")", "～", "→", ";", ":", "☆", ".", "－", "-",
+                     "【", "】", "『", "』", "∞", "/", "／", "♪", "（", "）", "<", ">", "★", "▷", "△",
+                     "ー", "＜", "＞", "！", "？", "・", "!", "?", "×", "、", "。"]
+        before = [chr(0xff01 + i) for i in range(94)] + trim_char
+
+        after = [chr(0x21 + i) for i in range(94)] + ([""] * len(trim_char))
+
+        self.map_table = str.maketrans(dict([(x, y) for x, y in zip(before, after)]))
+        self.kks = kakasi()
+
+    def sanitize(self, string):
+        return string.translate(self.map_table).lower()
+
+    def convert_str_to_kana(self, string):
+        return "".join([token["hira"] for token in self.kks.convert(string)])
 
 
 def d1_fitting(budget):
@@ -349,6 +370,172 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list,
         "cluster": cluster_info,
         "no_check": no_check_info
     }, 200
+
+
+def title_search(kw=None, search_type="startswith", sort=False, kana=False):
+
+    titles_df = pd.read_pickle("./data/titles.pkl")
+
+    if kw is not None:
+        str_formatter = StringFormatter()
+
+        kw = str_formatter.sanitize(kw)
+        if kana:
+            kw = str_formatter.convert_str_to_kana(kw)
+            column_name = "sanitized_kana"
+        else:
+            column_name = "sanitized_title"
+
+        if search_type == "startswith":
+            titles_df = titles_df.query(f'{column_name}.str.startswith("{kw}")', engine="python")
+            # title_list = [
+            #     title for title in title_list
+            #     if title.lower().translate(zenkaku2hankaku).startswith(sanitized_kw)
+            # ]
+        elif search_type == "contains":
+            titles_df = titles_df.query(f'{column_name}.str.contains("{kw}")', engine="python")
+            # title_list = [
+            #     title for title in title_list
+            #     if sanitized_kw in title.lower().translate(zenkaku2hankaku)
+            # ]
+        else:
+            raise ValueError("選択したサーチ方法が見つかりません.")
+
+    if sort:
+        return titles_df.sort_values("sanitized_kana")
+    else:
+        return titles_df
+
+# /api/title/all
+@api.route('/title/all', methods=['GET'])
+def get_all_titles():
+    start_time = time.time()
+
+    q_sort = request.args.get('sort', default="false", type=str)
+
+    if q_sort == "":
+        converted_sort = True
+    else:
+        converted_sort = convert_boolean_str_to_bool(q_sort)
+        if converted_sort is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'sort' : {q_sort}",
+                "invalid_param": "sort",
+            }), 400
+
+    item_list = title_search(sort=converted_sort)[["title", "tag"]].to_dict(orient="records")
+
+    rtn_dict = {
+        "count": {
+            "total": len(item_list),
+        },
+        "items": item_list,
+        "processing_time": time.time() - start_time,
+        "sort": converted_sort
+    }
+
+    return jsonify(rtn_dict), 200
+
+
+# /api/title/search/startswith
+@api.route('/title/search/startswith', methods=['GET'])
+def search_titles_startswith():
+    start_time = time.time()
+
+    q_kw = request.args.get('kw', default="", type=str)
+    q_sort = request.args.get('sort', default="false", type=str)
+    q_kana = request.args.get('kana', default="false", type=str)
+
+    if len(q_kw) <= 0:
+        return jsonify({
+            "msg": "'kw' is not set",
+            "invalid_param": "kw",
+        }), 400
+
+    if q_sort == "":
+        converted_sort = True
+    else:
+        converted_sort = convert_boolean_str_to_bool(q_sort)
+        if converted_sort is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'sort' : {q_sort}",
+                "invalid_param": "sort",
+            }), 400
+
+    if q_kana == "":
+        converted_kana = True
+    else:
+        converted_kana = convert_boolean_str_to_bool(q_kana)
+        if converted_kana is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'kana' : {q_kana}",
+                "invalid_param": "sort",
+            }), 400
+
+    item_list = title_search(kw=q_kw, search_type="startswith",
+                             sort=converted_sort, kana=converted_kana)[["title", "tag"]].to_dict(orient="records")
+
+    rtn_dict = {
+        "count": {
+            "total": len(item_list),
+        },
+        "items": item_list,
+        "processing_time": time.time() - start_time,
+        "sort": converted_sort,
+        "kana": converted_kana,
+    }
+    return jsonify(rtn_dict), 200
+
+
+# /api/title/search/contains
+@api.route('/title/search/contains', methods=['GET'])
+def search_titles_contains():
+    start_time = time.time()
+
+    q_kw = request.args.get('kw', default="", type=str)
+    q_sort = request.args.get('sort', default="false", type=str)
+    q_kana = request.args.get('kana', default="false", type=str)
+
+    if len(q_kw) <= 0:
+        return jsonify({
+            "msg": "'kw' is not set",
+            "invalid_param": "kw",
+        }), 400
+
+    if q_sort == "":
+        converted_sort = True
+    else:
+        converted_sort = convert_boolean_str_to_bool(q_sort)
+        if converted_sort is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'sort' : {q_sort}",
+                "invalid_param": "sort",
+            }), 400
+
+    if q_kana == "":
+        converted_kana = True
+    else:
+        converted_kana = convert_boolean_str_to_bool(q_kana)
+        if converted_kana is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'kana' : {q_kana}",
+                "invalid_param": "sort",
+            }), 400
+
+    item_list = title_search(kw=q_kw, search_type="contains",
+                             sort=converted_sort, kana=converted_kana)[["title", "tag"]].to_dict(orient="records")
+
+    rtn_dict = {
+        "count": {
+            "total": len(item_list),
+        },
+        "items": item_list,
+        "processing_time": time.time() - start_time,
+        "sort": converted_sort,
+        "kana": converted_kana,
+    }
+    return jsonify(rtn_dict), 200
+
 
 # /api/locations_within_budget, [GET]
 @api.route('/locations_within_budget', methods=['GET'])

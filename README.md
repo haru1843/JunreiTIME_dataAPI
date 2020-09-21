@@ -24,7 +24,7 @@
   - [Table Of Contents](#table-of-contents)
 - [関連地取得系](#関連地取得系)
   - [/random_locations [GET]](#random_locations-get)
-  - [/locations_in_circle [GET]](#locations_in_circle-get)
+  - [/locations/circle [GET]](#locationscircle-get)
   - [/locations/budget [GET]](#locationsbudget-get)
   - [/locations/title [GET]](#locationstitle-get)
   - [データオブジェクトについて](#データオブジェクトについて)
@@ -529,6 +529,8 @@ http://127.0.0.1:8080/api/title/search/startswith?kw=私&sort&kana
 
 
 ## /title/search/contains [GET]
+
+### 概要
 
 全作品名に対し, 検索ワード(`kw`)が部分一致するものを検索し, そのリストを返します.
 

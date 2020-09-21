@@ -33,6 +33,8 @@
   - [/title/search/startswith [GET]](#titlesearchstartswith-get)
   - [/title/search/contains [GET]](#titlesearchcontains-get)
   - [データオブジェクトについて](#データオブジェクトについて-1)
+- [値の予測](#値の予測)
+  - [/predict/locations_num [GET]](#predictlocations_num-get)
 
 <!-- /code_chunk_output -->
 
@@ -601,7 +603,7 @@ TitleObject
 |  `"tag"`  | アニメかドラマかの判別タグ |    str    |
 
 
-# 関連地数の予測
+# 値の予測
 
 ## /predict/locations_num [GET]
 

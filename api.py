@@ -46,6 +46,30 @@ def d3_fitting(budget):
     return -9.05759095e-06 * (budget**3) + 5.57103185e-02 * (budget**2) - 9.18636189*(budget) + 1.13578072e+04
 
 
+def predict_locations_num(lat, lon, r, grs80):
+    p1 = {"lat": 35.655094385177414, "lon": 139.63625767563855}  # 世田谷
+    _, _, d1 = grs80.inv(
+        p1["lon"], p1["lat"],
+        lon, lat
+    )
+
+    scaled_r = r / 1e6
+    diff = d1 - r
+    sigmoid_diff = np.where(
+        diff < 10000,
+        1 / (1 + np.exp((5000 - diff)/-10000)),
+        0
+    )
+
+    return 1e4 * (
+        + (1.05728914*scaled_r)
+        + (2.07445777*(scaled_r**2))
+        + (1.73280175*sigmoid_diff)
+        + (5.10539971*(sigmoid_diff**2))
+        - 0.00390048
+    )
+
+
 def check_some_circles_state(grs80, lat_c, lon_c, r_c, lat_query, lon_query, r_query):
 
     try:
@@ -834,6 +858,50 @@ def get_random_locations():
     ]
 
     return jsonify({"count": {"total": q_num}, "items": info_list}), 200
+
+
+# /api/predict/locations_num [GET]
+@api.route('/predict/locations_num', methods=['GET'])
+def get_locations_num():
+    start_time = time.time()
+
+    q_lat = request.args.get('lat', type=float)
+    q_lon = request.args.get('lon', type=float)
+    q_r = request.args.get('r', type=int)
+
+    # latに対するチェック
+    lat_is_wrong = is_lat_wrong(q_lat)
+    if lat_is_wrong:
+        return jsonify({
+            "msg": lat_is_wrong["msg"],
+            "invalid_param": "lat",
+        }), lat_is_wrong["status_code"]
+
+    # lonに対するチェック
+    lon_is_wrong = is_lon_wrong(q_lon)
+    if lon_is_wrong:
+        return jsonify({
+            "msg": lon_is_wrong["msg"],
+            "invalid_param": "lon",
+        }), lon_is_wrong["status_code"]
+
+    # rに対するチェック
+    r_is_wrong = is_r_wrong(q_r)
+    if r_is_wrong:
+        return jsonify({
+            "msg": r_is_wrong["msg"],
+            "invalid_param": "r",
+        }), r_is_wrong["status_code"]
+
+    grs80 = pyproj.Geod(ellps="GRS80")
+    predicted_num = predict_locations_num(q_lat, q_lon, q_r, grs80)
+
+    rtn_dict = {
+        "predict": predicted_num,
+        "processing_time": time.time() - start_time,
+    }
+
+    return jsonify(rtn_dict), 200
 
 
 # エラーのハンドリング

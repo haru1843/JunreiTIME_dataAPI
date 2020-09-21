@@ -537,8 +537,47 @@ def search_titles_contains():
     return jsonify(rtn_dict), 200
 
 
+# /api/locations/titles
+@api.route('/locations/title', methods=['GET'])
+def get_locations_by_title():
+    start_time = time.time()
+
+    q_title = request.args.get('title', type=str)
+    q_limit = request.args.get('limit', default=1000, type=int)
+
+    if q_title is None:
+        return jsonify({
+            "msg": "parameter 'title' is required",
+            "invalid_param": "title",
+        }), 400
+
+    # limitに対するチェック
+    if q_limit <= 0:
+        return jsonify({
+            "msg": "parameter 'limit' must be greater then 0",
+            "invalid_param": "limit",
+        }), 400
+
+    clustered_data_dir = "./data/clustered_data/"
+    df = pd.read_pickle(
+        os.path.join(clustered_data_dir, "all.pkl")
+    ).query("title == @q_title")
+
+    rtn_dict = {
+        "count": {
+            "total": len(df),
+            "limit": q_limit
+        },
+        "items": df.to_dict(orient="records")[:q_limit],
+        "processing_time": time.time() - start_time,
+    }
+
+    return jsonify(rtn_dict), 200
+
 # /api/locations_within_budget, [GET]
-@api.route('/locations_within_budget', methods=['GET'])
+# /api/locations/within_budget, [GET]
+@api.route('/locations_within_budget', methods=['GET'])  # そのうち消す
+@api.route('/locations/budget', methods=['GET'])
 def get_locations_within_budget():
     start_time = time.time()
 
@@ -648,7 +687,9 @@ def get_locations_within_budget():
     return jsonify(rtn_dict), status_code
 
 # /api/locations_in_circle, [GET]
-@api.route('/locations_in_circle', methods=['GET'])
+# /api/locations_in_circle, [GET]
+@api.route('/locations_in_circle', methods=['GET'])   # そのうち消す
+@api.route('/locations/circle', methods=['GET'])
 def get_locations_in_circle():
     start_time = time.time()
 

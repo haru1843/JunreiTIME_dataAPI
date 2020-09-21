@@ -1,4 +1,4 @@
-# APIの概要 {ignore}
+# APIの概要
 
 ドラマやアニメにゆかりのある土地の情報を取得するためのAPIです.
 
@@ -19,12 +19,14 @@
 
 <!-- code_chunk_output -->
 
+- [APIの概要](#apiの概要)
   - [各機能の名称とリンク](#各機能の名称とリンク)
   - [Table Of Contents](#table-of-contents)
-- [/locations系](#locations系)
+- [関連地取得系](#関連地取得系)
   - [/random_locations [GET]](#random_locations-get)
   - [/locations_in_circle [GET]](#locations_in_circle-get)
-  - [/locations_within_budget [GET]](#locations_within_budget-get)
+  - [/locations/budget [GET]](#locationsbudget-get)
+  - [/locations/title [GET]](#locationstitle-get)
   - [データオブジェクトについて](#データオブジェクトについて)
 - [作品タイトル関係](#作品タイトル関係)
   - [/title/all [GET]](#titleall-get)
@@ -35,7 +37,7 @@
 <!-- /code_chunk_output -->
 
 
-# /locations系
+# 関連地取得系
 
 ホスト : `https://junrei-time-dataapi.herokuapp.com/api/`
 
@@ -75,7 +77,7 @@ https://junrei-time-dataapi.herokuapp.com/api/random_locations
 https://junrei-time-dataapi.herokuapp.com/api/random_locations?num=3
 ```
 
-## /locations_in_circle [GET]
+## /locations/circle [GET]
 
 ### 概要
 
@@ -136,29 +138,29 @@ responce
     └tag : List
 ```
 
-| key                          |                    valueの内容                     | valueの型 |
-|:-----------------------------|:--------------------------------------------------:|:---------:|
-| `"cluster"`                  |                    クラスタ情報                    |           |
-| ├`"main_cluster"`            |     計算の対象となったメインのクラスタについて     |           |
-| │　├`"all"`                  |                        総数                        |    int    |
-| │　├`"inner"`                |            完全内包されていたクラスタ数            |    int    |
-| │　├`"outer"`                |                 無関係のクラスタ数                 |    int    |
-| │　└`"touch"`                |           重なる領域が存在したクラスタ数           |           |
-| │　　├`"have_no_subcluster"` |             内のサブクラスタを持つもの             |    int    |
-| │　　└`"have_subclusters"`   |           内のサブクラスタを持たないもの           |    int    |
-| │                            |                                                    |           |
-| └`"sub_cluster"`             |        計算対象となったサブクラスタについて        |    int    |
-| .　　├`"all"`                |                        総数                        |    int    |
-| .　　├`"inner"`              |            完全内包されていたクラスタ数            |    int    |
-| .　　├`"outer"`              |                 無関係のクラスタ数                 |    int    |
-| .　　└`"touch"`              |           重なる領域が存在したクラスタ数           |           |
-|                              |                                                    |           |
-| `"count"`                    |                 取得数に関する情報                 |           |
-| ├`"limit"`                   |                     取得上限数                     |    int    |
-| └`"total"`                   |                   実際の総hit数                    |    int    |
-|                              |                                                    |           |
-| `"items"`                    |                 関連地情報のリスト                 |           |
-| └`"LIST[LocationObject]"`    | `"LocationObject"`の内容は[後述](#LocationnObject) |           |
+| key                          |                    valueの内容                    | valueの型 |
+|:-----------------------------|:-------------------------------------------------:|:---------:|
+| `"cluster"`                  |                   クラスタ情報                    |           |
+| ├`"main_cluster"`            |    計算の対象となったメインのクラスタについて     |           |
+| │　├`"all"`                  |                       総数                        |    int    |
+| │　├`"inner"`                |           完全内包されていたクラスタ数            |    int    |
+| │　├`"outer"`                |                無関係のクラスタ数                 |    int    |
+| │　└`"touch"`                |          重なる領域が存在したクラスタ数           |           |
+| │　　├`"have_no_subcluster"` |            内のサブクラスタを持つもの             |    int    |
+| │　　└`"have_subclusters"`   |          内のサブクラスタを持たないもの           |    int    |
+| │                            |                                                   |           |
+| └`"sub_cluster"`             |       計算対象となったサブクラスタについて        |    int    |
+| .　　├`"all"`                |                       総数                        |    int    |
+| .　　├`"inner"`              |           完全内包されていたクラスタ数            |    int    |
+| .　　├`"outer"`              |                無関係のクラスタ数                 |    int    |
+| .　　└`"touch"`              |          重なる領域が存在したクラスタ数           |           |
+|                              |                                                   |           |
+| `"count"`                    |                取得数に関する情報                 |           |
+| ├`"limit"`                   |                    取得上限数                     |    int    |
+| └`"total"`                   |                   実際の総hit数                   |    int    |
+|                              |                                                   |           |
+| `"items"`                    |                関連地情報のリスト                 |           |
+| └`"LIST[LocationObject]"`    | `"LocationObject"`の内容は[後述](#LocationObject) |           |
 
 
 ### 利用例
@@ -167,7 +169,7 @@ responce
 https://junrei-time-dataapi.herokuapp.com/api/locations_in_circle?lat=35.556243&lon=139.662233&r=10000&limit=10&tag=anime
 ```
 
-## /locations_within_budget [GET]
+## /locations/budget [GET]
 
 ### 概要
 
@@ -228,42 +230,42 @@ responce
     └tag : List
 ```
 
-| key                          |                    valueの内容                     | valueの型 |
-|:-----------------------------|:--------------------------------------------------:|:---------:|
-| `"cluster"`                  |                    クラスタ情報                    |           |
-| ├`"main_cluster"`            |     計算の対象となったメインのクラスタについて     |           |
-| │　├`"all"`                  |                        総数                        |    int    |
-| │　├`"inner"`                |            完全内包されていたクラスタ数            |    int    |
-| │　├`"outer"`                |                 無関係のクラスタ数                 |    int    |
-| │　└`"touch"`                |           重なる領域が存在したクラスタ数           |           |
-| │　　├`"have_no_subcluster"` |             内のサブクラスタを持つもの             |    int    |
-| │　　└`"have_subclusters"`   |           内のサブクラスタを持たないもの           |    int    |
-| │                            |                                                    |           |
-| └`"sub_cluster"`             |        計算対象となったサブクラスタについて        |    int    |
-| .　　├`"all"`                |                        総数                        |    int    |
-| .　　├`"inner"`              |            完全内包されていたクラスタ数            |    int    |
-| .　　├`"outer"`              |                 無関係のクラスタ数                 |    int    |
-| .　　└`"touch"`              |           重なる領域が存在したクラスタ数           |           |
-|                              |                                                    |           |
-| `"convert"`                  |                金額→距離の変換情報                 |           |
-| ├`"budget"`                  |                        金額                        |    int    |
-| └`"distance"`                |                    変換後の距離                    |   float   |
-|                              |                                                    |           |
-| `"count"`                    |                 取得数に関する情報                 |           |
-| ├`"limit"`                   |                     取得上限数                     |    int    |
-| └`"total"`                   |                   実際の総hit数                    |    int    |
-|                              |                                                    |           |
-| `"items"`                    |                 関連地情報のリスト                 |           |
-| └`"LIST[LocationObject]"`    | `"LocationObject"`の内容は[後述](#LocationnObject) |           |
-|                              |                                                    |           |
-| `"no_check"`                 |              内容は[後述](#no_check)               |           |
-|                              |                                                    |           |
-| `"no_clustered"`             |            内容は[後述](#no_clustered)             |           |
-|                              |                                                    |           |
-| `"processing_time"`          |             サーバ上でのクエリ処理時間             |   float   |
-|                              |                                                    |           |
-| `"tag"`                      |                                                    |           |
-| └`"LIST[str]"`               |                  対象タグのリスト                  | List[str] |
+| key                          |                    valueの内容                    | valueの型 |
+|:-----------------------------|:-------------------------------------------------:|:---------:|
+| `"cluster"`                  |                   クラスタ情報                    |           |
+| ├`"main_cluster"`            |    計算の対象となったメインのクラスタについて     |           |
+| │　├`"all"`                  |                       総数                        |    int    |
+| │　├`"inner"`                |           完全内包されていたクラスタ数            |    int    |
+| │　├`"outer"`                |                無関係のクラスタ数                 |    int    |
+| │　└`"touch"`                |          重なる領域が存在したクラスタ数           |           |
+| │　　├`"have_no_subcluster"` |            内のサブクラスタを持つもの             |    int    |
+| │　　└`"have_subclusters"`   |          内のサブクラスタを持たないもの           |    int    |
+| │                            |                                                   |           |
+| └`"sub_cluster"`             |       計算対象となったサブクラスタについて        |    int    |
+| .　　├`"all"`                |                       総数                        |    int    |
+| .　　├`"inner"`              |           完全内包されていたクラスタ数            |    int    |
+| .　　├`"outer"`              |                無関係のクラスタ数                 |    int    |
+| .　　└`"touch"`              |          重なる領域が存在したクラスタ数           |           |
+|                              |                                                   |           |
+| `"convert"`                  |                金額→距離の変換情報                |           |
+| ├`"budget"`                  |                       金額                        |    int    |
+| └`"distance"`                |                   変換後の距離                    |   float   |
+|                              |                                                   |           |
+| `"count"`                    |                取得数に関する情報                 |           |
+| ├`"limit"`                   |                    取得上限数                     |    int    |
+| └`"total"`                   |                   実際の総hit数                   |    int    |
+|                              |                                                   |           |
+| `"items"`                    |                関連地情報のリスト                 |           |
+| └`"LIST[LocationObject]"`    | `"LocationObject"`の内容は[後述](#LocationObject) |           |
+|                              |                                                   |           |
+| `"no_check"`                 |              内容は[後述](#no_check)              |           |
+|                              |                                                   |           |
+| `"no_clustered"`             |            内容は[後述](#no_clustered)            |           |
+|                              |                                                   |           |
+| `"processing_time"`          |         サーバ上でのクエリ処理時間 [sec]          |   float   |
+|                              |                                                   |           |
+| `"tag"`                      |                                                   |           |
+| └`"LIST[str]"`               |                 対象タグのリスト                  | List[str] |
 
 
 ### func_typeについて
@@ -282,10 +284,63 @@ responce
 https://junrei-time-dataapi.herokuapp.com/api/locations_within_budget?lat=35.556243&lon=139.662233&budget=300&limit=10&tag=anime&func_type=d2
 ```
 
+## /locations/title [GET]
+
+
+### 概要
+
+与えたタイトルに完全一致する作品の関連地情報を取得します.
+
+### パラメータ
+
+| パラメータ名 | 必須 |                          概要                           | 型名 | デフォルト | 値域        | 備考                                                  |
+|:------------:|:----:|:-------------------------------------------------------:|------|------------|-------------|-------------------------------------------------------|
+|   `title`    |  ✓   |       検索する作品名.ヒットするのは完全一致のみ.        | str  |            |             | 同名でドラマ/アニメの両方が存在する場合もあるので注意 |
+|   `limit`    |      | 取得個数を制限する. 制限時は距離の近いものが取得される. | int  | `1000`     | `0 < limit` |                                                       |
+
+各パラメータにおいて, 値域を満たさない場合, `400 BadRequest` が返却される
+
+
+### 返却値
+
+#### 全体
+
+```
+responce
+    ├count
+    │   ├limit
+    │   └total
+    │
+    ├items : LIST[LocationObject]
+    │
+    └processing_time
+```
+
+| key                       |                    valueの内容                    | valueの型 |
+|:--------------------------|:-------------------------------------------------:|:---------:|
+| `"count"`                 |                取得数に関する情報                 |           |
+| ├`"limit"`                |                    取得上限数                     |    int    |
+| └`"total"`                |                   実際の総hit数                   |    int    |
+|                           |                                                   |           |
+| `"items"`                 |                関連地情報のリスト                 |           |
+| └`"LIST[LocationObject]"` | `"LocationObject"`の内容は[後述](#LocationObject) |           |
+|                           |                                                   |           |
+| `"processing_time"`       |         サーバ上でのクエリ処理時間 [sec]          |   float   |
+
+
+### 利用例
+
+```
+https://junrei-time-dataapi.herokuapp.com/api/locations/title?title=魔王
+https://junrei-time-dataapi.herokuapp.com/api/locations/title?title=魔王&limit=10
+https://junrei-time-dataapi.herokuapp.com/api/locations/title?title=魔王&limit=999999
+```
+
+
 
 ## データオブジェクトについて
 
-### LocationnObject
+### LocationObject
 
 ```
 LocationObject
@@ -403,7 +458,7 @@ responce
 | `"items"`              |             作品名情報のリスト              |           |
 | └`"LIST[TitleObject]"` | `"TitleObject"`の内容は[後述](#TitleObject) |           |
 |                        |                                             |           |
-| `"processing_time"`    |         サーバ上でのクエリ処理時間          |   float   |
+| `"processing_time"`    |      サーバ上でのクエリ処理時間 [sec]       |   float   |
 |                        |                                             |           |
 | `"sort"`               | ソートしたかどうか. ソートした場合は`true`  |   bool    |
 
@@ -442,6 +497,8 @@ responce
     │
     ├items : LIST[TitleObject]
     │
+    ├kana
+    │
     ├processing_time
     │
     └sort
@@ -455,9 +512,9 @@ responce
 | `"items"`              |             作品名情報のリスト              |           |
 | └`"LIST[TitleObject]"` | `"TitleObject"`の内容は[後述](#TitleObject) |           |
 |                        |                                             |           |
-| `"sort"`               |     かな変換による検索を行ったかどうか      |   bool    |
+| `"kana"`               |     かな変換による検索を行ったかどうか      |   bool    |
 |                        |                                             |           |
-| `"processing_time"`    |         サーバ上でのクエリ処理時間          |   float   |
+| `"processing_time"`    |      サーバ上でのクエリ処理時間 [sec]       |   float   |
 |                        |                                             |           |
 | `"sort"`               |             ソートしたかどうか              |   bool    |
 
@@ -496,6 +553,8 @@ responce
     │
     ├items : LIST[TitleObject]
     │
+    ├kana
+    │
     ├processing_time
     │
     └sort
@@ -509,9 +568,9 @@ responce
 | `"items"`              |             作品名情報のリスト              |           |
 | └`"LIST[TitleObject]"` | `"TitleObject"`の内容は[後述](#TitleObject) |           |
 |                        |                                             |           |
-| `"sort"`               |     かな変換による検索を行ったかどうか      |   bool    |
+| `"kana"`               |     かな変換による検索を行ったかどうか      |   bool    |
 |                        |                                             |           |
-| `"processing_time"`    |         サーバ上でのクエリ処理時間          |   float   |
+| `"processing_time"`    |      サーバ上でのクエリ処理時間 [sec]       |   float   |
 |                        |                                             |           |
 | `"sort"`               |             ソートしたかどうか              |   bool    |
 

@@ -524,9 +524,9 @@ responce
 ### 利用例
 
 ```
-http://127.0.0.1:8080/api/title/search/startswith?kw=私
-http://127.0.0.1:8080/api/title/search/startswith?kw=私&sort
-http://127.0.0.1:8080/api/title/search/startswith?kw=私&sort&kana
+https://junrei-time-dataapi.herokuapp.com/api/title/search/startswith?kw=私
+https://junrei-time-dataapi.herokuapp.com/api/title/search/startswith?kw=私&sort
+https://junrei-time-dataapi.herokuapp.com/api/title/search/startswith?kw=私&sort&kana
 ```
 
 
@@ -582,9 +582,9 @@ responce
 ### 利用例
 
 ```
-http://127.0.0.1:8080/api/title/search/contains?kw=私
-http://127.0.0.1:8080/api/title/search/contains?kw=私&sort
-http://127.0.0.1:8080/api/title/search/contains?kw=私&sort&kana
+https://junrei-time-dataapi.herokuapp.com/api/title/search/contains?kw=私
+https://junrei-time-dataapi.herokuapp.com/api/title/search/contains?kw=私&sort
+https://junrei-time-dataapi.herokuapp.com/api/title/search/contains?kw=私&sort&kana
 ```
 
 ## データオブジェクトについて
@@ -638,4 +638,9 @@ responce
 | `"processing_time"` |       サーバ上でのクエリ処理時間 [sec]       |   float   |
 
 
-> /predict/locations_num?lat=32.87728801566952&lon=130.598757025641&r=10000
+
+### 利用例
+
+```
+https://junrei-time-dataapi.herokuapp.com/api/predict/locations_num?lat=32.87728801566952&lon=130.598757025641&r=10000
+```

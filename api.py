@@ -162,12 +162,10 @@ def get_fitting_func_from_func_type(func_type: str):
     return support_func_type_mapping[func_type]
 
 
-def calc_locations_in_circle_for_no_clustered(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list, no_check=False):
+def calc_locations_in_circle_for_no_clustered(grs80, q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list, no_check=False):
     clustered_data_dir = "./data/clustered_data/"
 
     info_list = []
-
-    grs80 = pyproj.Geod(ellps="GRS80")
 
     check_cluster_df = pd.read_pickle(
         os.path.join(clustered_data_dir, "all.pkl")
@@ -210,7 +208,7 @@ def calc_locations_in_circle_for_no_clustered(q_lat, q_lon, q_r, q_tag, q_limit,
     }, 200
 
 
-def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list, no_check=False):
+def calc_locations_in_circle(grs80, q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list, no_check=False):
     clustered_data_dir = "./data/clustered_data/"
 
     digit = 3
@@ -223,7 +221,6 @@ def calc_locations_in_circle(q_lat, q_lon, q_r, q_tag, q_limit, target_tag_list,
     info_list = []
 
     main_cluster_info = pd.read_pickle(os.path.join(clustered_data_dir, "cluster_info.pkl"))
-    grs80 = pyproj.Geod(ellps="GRS80")
 
     # メインクラスタに対する, クラスタ内包状態の確認
     main_cluster_num = len(main_cluster_info)
@@ -613,7 +610,7 @@ def get_locations_within_budget():
     q_tag = request.args.get('tag', default="anime,drama", type=str)
     q_limit = request.args.get('limit', default=1000, type=int)
     q_no_check = request.args.get('no_check', default="false", type=str)
-    q_no_clustered = request.args.get('no_clustered', default="false", type=str)
+    q_calc_type = request.args.get('calc_type', default="auto", type=str)
 
     # latに対するチェック
     lat_is_wrong = is_lat_wrong(q_lat)
@@ -681,33 +678,35 @@ def get_locations_within_budget():
                 "invalid_param": "no_check",
             }), 400
 
-    # no_clusteredに対する変換とチェック
-    if q_no_clustered == "":
-        converted_no_clustered = True
-    else:
-        converted_no_clustered = convert_boolean_str_to_bool(q_no_clustered)
-        if converted_no_clustered is None:
-            return jsonify({
-                "msg": f"Non-supporting format in 'no_clustered' : {q_no_clustered}",
-                "invalid_param": "no_clustered",
-            }), 400
+    grs80 = pyproj.Geod(ellps="GRS80")
+
+    # 計算タイプの決定
+    if q_calc_type not in ["cluster", "all"]:
+        predicted_num = predict_locations_num(q_lat, q_lon, calc_r, grs80)
+        q_calc_type = "all" if predicted_num > 20000 else "cluster"
 
     # 全体の処理
-    if converted_no_clustered:
+    if q_calc_type == "all":
         rtn_dict, status_code = calc_locations_in_circle_for_no_clustered(
-            q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
+            grs80=grs80, q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
             q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
         )
-    else:
+    elif q_calc_type == "cluster":
         rtn_dict, status_code = calc_locations_in_circle(
-            q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
+            grs80=grs80, q_lat=q_lat, q_lon=q_lon, q_r=calc_r,
             q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
             no_check=converted_no_check
         )
+    else:
+        return jsonify({
+            "msg": "there is something wrong.",
+            "invalid_param": "calc_type",
+        }), 500
+
     rtn_dict["convert"] = {"budget": q_budget, "distance": calc_r}
-    rtn_dict["no_clustered"] = {"enable": converted_no_clustered}
     rtn_dict["tag"] = target_tag_list
     rtn_dict["processing_time"] = time.time() - start_time
+    rtn_dict["calc_type"] = q_calc_type
     return jsonify(rtn_dict), status_code
 
 # /api/locations_in_circle, [GET]
@@ -723,7 +722,6 @@ def get_locations_in_circle():
     param
     ----------------------
 
-
     return
     ----------------------
 
@@ -735,7 +733,7 @@ def get_locations_in_circle():
     q_tag = request.args.get('tag', default="anime,drama", type=str)
     q_limit = request.args.get('limit', default=1000, type=int)
     q_no_check = request.args.get('no_check', default="false", type=str)
-    q_no_clustered = request.args.get('no_clustered', default="false", type=str)
+    q_calc_type = request.args.get('calc_type', default="auto", type=str)
 
     # latに対するチェック
     lat_is_wrong = is_lat_wrong(q_lat)
@@ -786,33 +784,36 @@ def get_locations_in_circle():
                 "invalid_param": "no_check",
             }), 400
 
-    # no_clusteredに対する変換とチェック
-    if q_no_clustered == "":
-        converted_no_clustered = True
-    else:
-        converted_no_clustered = convert_boolean_str_to_bool(q_no_clustered)
-        if converted_no_clustered is None:
-            return jsonify({
-                "msg": f"Non-supporting format in 'no_clustered' : {q_no_clustered}",
-                "invalid_param": "no_clustered",
-            }), 400
+    grs80 = pyproj.Geod(ellps="GRS80")
+
+    # 計算タイプの決定
+    if q_calc_type not in ["cluster", "all"]:
+        print(q_calc_type)
+        print(q_calc_type in ["cluster", "all"])
+        predicted_num = predict_locations_num(q_lat, q_lon, q_r, grs80)
+        q_calc_type = "all" if predicted_num > 20000 else "cluster"
 
     # 全体の処理
-    if converted_no_clustered:
+    if q_calc_type == "all":
         rtn_dict, status_code = calc_locations_in_circle_for_no_clustered(
-            q_lat=q_lat, q_lon=q_lon, q_r=q_r,
+            grs80=grs80, q_lat=q_lat, q_lon=q_lon, q_r=q_r,
             q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
         )
-    else:
+    elif q_calc_type == "cluster":
         rtn_dict, status_code = calc_locations_in_circle(
-            q_lat=q_lat, q_lon=q_lon, q_r=q_r,
+            grs80=grs80, q_lat=q_lat, q_lon=q_lon, q_r=q_r,
             q_tag=q_tag, q_limit=q_limit, target_tag_list=target_tag_list,
             no_check=converted_no_check
         )
+    else:
+        return jsonify({
+            "msg": "there is something wrong.",
+            "invalid_param": "calc_type",
+        }), 500
 
-    rtn_dict["no_clustered"] = {"enable": converted_no_clustered}
     rtn_dict["tag"] = target_tag_list
     rtn_dict["processing_time"] = time.time() - start_time
+    rtn_dict["calc_type"] = q_calc_type
     return jsonify(rtn_dict), status_code
 
 # /api/locations, [GET]
@@ -823,7 +824,6 @@ def get_random_locations():
 
     param
     ----------------------
-
 
     return
     ----------------------

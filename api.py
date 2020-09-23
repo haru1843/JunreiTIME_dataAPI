@@ -714,8 +714,6 @@ def get_locations_within_budget():
 @api.route('/locations_in_circle', methods=['GET'])   # そのうち消す
 @api.route('/locations/circle', methods=['GET'])
 def get_locations_in_circle():
-    start_time = time.time()
-
     """
     hoge
 
@@ -726,6 +724,8 @@ def get_locations_in_circle():
     ----------------------
 
     """
+    start_time = time.time()
+
     # クエリパラメータの取得
     q_lat = request.args.get('lat', type=float)
     q_lon = request.args.get('lon', type=float)

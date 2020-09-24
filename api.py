@@ -600,6 +600,12 @@ def get_locations_by_title():
         os.path.join(clustered_data_dir, "all.pkl")
     ).query("title == @q_title").reset_index(drop=True)
 
+    if len(df) <= 0:
+        return jsonify({
+            "msg": f"there is no title '{q_title}' in database",
+            "invalid_param": "title"
+        }), 400
+
     get_loc = {"enable": converted_get_loc}
     if converted_get_loc:
 

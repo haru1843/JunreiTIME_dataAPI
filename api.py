@@ -23,12 +23,17 @@ class StringFormatter:
 
         self.map_table = str.maketrans(dict([(x, y) for x, y in zip(before, after)]))
         self.kks = kakasi()
+        self.kks.setMode("K", "H")
+        self.kks.setMode("J", "H")
+        self.kks.setMode("H", "H")
+        self.converter = self.kks.getConverter()
 
     def sanitize(self, string):
         return string.translate(self.map_table).lower()
 
     def convert_str_to_kana(self, string):
-        return "".join([token["hira"] for token in self.kks.convert(string)])
+        return self.converter.do(string)
+        # return "".join([token["hira"] for token in self.kks.convert(string)])
 
 
 def d1_fitting(budget):

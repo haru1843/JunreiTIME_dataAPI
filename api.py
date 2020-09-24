@@ -600,8 +600,6 @@ def get_locations_by_title():
         os.path.join(clustered_data_dir, "all.pkl")
     ).query("title == @q_title").reset_index(drop=True)
 
-    print(df)
-
     get_loc = {"enable": converted_get_loc}
     if converted_get_loc:
 

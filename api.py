@@ -570,6 +570,7 @@ def get_locations_by_title():
 
     q_title = request.args.get('title', type=str)
     q_limit = request.args.get('limit', default=1000, type=int)
+    q_get_loc = request.args.get('get_loc', default="false", type=str)
 
     if q_title is None:
         return jsonify({
@@ -584,10 +585,41 @@ def get_locations_by_title():
             "invalid_param": "limit",
         }), 400
 
+    if q_get_loc == "":
+        converted_get_loc = True
+    else:
+        converted_get_loc = convert_boolean_str_to_bool(q_get_loc)
+        if converted_get_loc is None:
+            return jsonify({
+                "msg": f"Non-supporting format in 'get_loc' : {q_get_loc}",
+                "invalid_param": "get_loc",
+            }), 400
+
     clustered_data_dir = "./data/clustered_data/"
     df = pd.read_pickle(
         os.path.join(clustered_data_dir, "all.pkl")
-    ).query("title == @q_title")
+    ).query("title == @q_title").reset_index(drop=True)
+
+    print(df)
+
+    get_loc = {"enable": converted_get_loc}
+    if converted_get_loc:
+
+        EPSG4612 = pyproj.Proj("+init=EPSG:4612")
+        EPSG2451 = pyproj.Proj("+init=EPSG:2451")
+
+        y, x = pyproj.transform(
+            EPSG4612, EPSG2451, df["lon"].tolist(), df["lat"].tolist())  # y=東西, x=南北なことに注意
+
+        ave_y = np.mean(y)
+        ave_x = np.mean(x)
+
+        idx = np.argmin(np.linalg.norm(np.array([(y-ave_y), (x-ave_x)]), ord=2, axis=0))
+
+        get_loc["loc"] = {
+            "lat": df.iloc[idx]["lat"],
+            "lon": df.iloc[idx]["lon"],
+        }
 
     rtn_dict = {
         "count": {
@@ -596,6 +628,7 @@ def get_locations_by_title():
         },
         "items": df.to_dict(orient="records")[:q_limit],
         "processing_time": time.time() - start_time,
+        "get_loc": get_loc,
     }
 
     return jsonify(rtn_dict), 200
